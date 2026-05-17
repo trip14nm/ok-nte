@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 from typing import Callable, List, Tuple
 
-from ok import CannotFindException, TaskDisabledException, find_color_rectangles
+from ok import CannotFindException, TaskDisabledException, find_color_rectangles, og
 from qfluentwidgets import FluentIcon
 
 from src import text_white_color
@@ -22,6 +22,7 @@ class DailyTask(NTEOneTimeTask, BaseNTETask):
     CONF_CLAIM_ACTIVITY = "领取活跃度奖励"
     CONF_CLAIM_BP = "领取环期任务奖励"
     CONF_CLAIM_COFFEE = "领取/补货一咖舍"
+    CONF_RESTOCK_COFFEE = "一咖舍自动补货"
 
     CONF_AUTO_CYCLE_SUB_TASK = "自动循环项目"
     DAILY_STAMINA_TARGET = "目标消耗体力"
@@ -46,8 +47,30 @@ class DailyTask(NTEOneTimeTask, BaseNTETask):
                 self.CONF_AUTO_CYCLE_SUB_TASK: "任务完成后自动切换至下一个项目",
             }
         )
+        # 一咖舍页面 OCR 仅匹配简体中文; 在非 zh_CN 下不向用户暴露补货开关,
+        # 但保留键的运行时缺省为开启 (与 upstream 行为一致).
+        if self._is_zh_cn_locale():
+            self.default_config[self.CONF_RESTOCK_COFFEE] = True
+            self.config_description[self.CONF_RESTOCK_COFFEE] = (
+                "关闭后只领取一咖舍收益，不执行补货购买"
+            )
         self.current_task_key = None
         self.add_exit_after_config()
+
+    @staticmethod
+    def _is_zh_cn_locale() -> bool:
+        """Return True iff the running app reports zh_CN as its locale.
+
+        Defensive against early init / test contexts where ``og.app`` may be
+        missing or ``locale.name()`` may raise.
+        """
+        app = getattr(og, "app", None)
+        if app is None or not hasattr(app, "locale"):
+            return False
+        try:
+            return app.locale.name() == "zh_CN"
+        except Exception:
+            return False
 
     def run(self):
         super().run()
@@ -336,6 +359,10 @@ class DailyTask(NTEOneTimeTask, BaseNTETask):
             settle_time=0.5,
         )
         self.sleep(1)
+
+        if not self.config.get(self.CONF_RESTOCK_COFFEE, True):
+            self.log_info("已跳过一咖舍补货")
+            return True
 
         # 进入补货
         
