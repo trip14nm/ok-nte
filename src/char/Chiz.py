@@ -27,6 +27,12 @@ class Chiz(BaseChar):
             self.click_with_interval()
             self.sleep(0.1)
 
+    def do_fast_perform(self):
+        self.wait_intro()
+        start = time.time()
+        while time.time() - start < 1:
+            self.send_skill_key()
+            self.sleep(0.1)
 
 
 red_pct_color = {
