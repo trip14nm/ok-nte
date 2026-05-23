@@ -174,7 +174,7 @@ class AutoHeistTask(NTEOneTimeTask, BaseCombatTask):
         if self.wait_until(self.find_interac, time_out=10, raise_if_not_found=False):
             return True
 
-        if self.is_in_team() and self.in_world():
+        if self.in_team_and_world():
             self._return_to_heist_entrance()
             return bool(self.wait_until(self.find_interac, time_out=20, raise_if_not_found=False))
 
