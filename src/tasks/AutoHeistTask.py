@@ -706,22 +706,19 @@ class AutoHeistTask(NTEOneTimeTask, BaseCombatTask):
         deadline = time.time() + 60
         settle = -1
         while time.time() < deadline:
-            if settle < 0:
-                self.send_key("space")
-                self.sleep(0.1)
-                self.click()
-                self.sleep(0.1)
-                if not self.is_in_team():
-                    self.log_info(f"fighter {_key} dead, try next")
-                    self._dead_fighter_keys.append(_key)
-                    self.ensure_in_team()
-                    _key = self.switch_to_fighter()
-                else:
-                    _key = self._current_fighter_key or _key
-                self.send_key(_key)
-                self.next_frame()
+            self.send_key("space")
+            self.sleep(0.1)
+            self.click()
+            self.sleep(0.1)
+            if not self.is_in_team():
+                self.log_info(f"fighter {_key} dead, try next")
+                self._dead_fighter_keys.append(_key)
+                self.ensure_in_team()
+                _key = self.switch_to_fighter()
             else:
-                self.sleep(0.1)
+                _key = self._current_fighter_key or _key
+            self.send_key(_key)
+            self.next_frame()
             if not self._find_red_health_bar(10):
                 if settle < 0:
                     settle = time.time()
