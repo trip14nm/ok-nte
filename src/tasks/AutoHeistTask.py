@@ -708,9 +708,9 @@ class AutoHeistTask(NTEOneTimeTask, BaseCombatTask):
         while time.time() < deadline:
             if settle < 0:
                 self.send_key("space")
-                self.sleep(0.2)
+                self.sleep(0.1)
                 self.click()
-                self.sleep(0.2)
+                self.sleep(0.1)
                 if not self.is_in_team():
                     self.log_info(f"fighter {_key} dead, try next")
                     self._dead_fighter_keys.append(_key)
