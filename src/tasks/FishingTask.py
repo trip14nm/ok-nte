@@ -61,6 +61,9 @@ class FishingTask(NTEOneTimeTask, BaseNTETask):
                 self.CONF_CONTROL_MODE: {
                     "type": "drop_down",
                     "options": [self.MODE_HOLD, self.MODE_TAP],
+                    "sub_configs": {
+                        self.MODE_TAP: self.CONF_TAP_MULTIPLIER,
+                    },
                 },
             }
         )

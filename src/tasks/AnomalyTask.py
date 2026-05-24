@@ -66,6 +66,12 @@ class AnomalyTask(NTEOneTimeTask, BaseCombatTask):
                         cls.TASK_ARC,
                         cls.TASK_CONSOLE,
                     ],
+                    "sub_configs": {
+                        cls.TASK_EXP_COIN: cls.CONF_EXP_TARGET,
+                        cls.TASK_ABILITY: cls.CONF_ABILITY_ID,
+                        cls.TASK_ARC: cls.CONF_ARC_ID,
+                        cls.TASK_CONSOLE: cls.CONF_CONSOLE_ID,
+                    },
                 },
                 cls.CONF_EXP_TARGET: {
                     "type": "drop_down",
