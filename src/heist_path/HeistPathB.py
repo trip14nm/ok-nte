@@ -22,7 +22,6 @@ class HeistPathB(HeistPathA):
         self.lg2_wp2_to_exit2_safer()
         self.lg2_wp3_to_layzer_room()
         self.lg2_wp3_in_layzer_room()
-        self.sleep(60.00)
         self.lg2_wp4()
         if self.exit_state[1]:
             self.lg2_wp4_to_exit1()
@@ -421,7 +420,7 @@ class HeistPathB(HeistPathA):
         self.send_key_down("w")
         self.sleep(2.20)
         if isExit:
-             self.walk_until_extract_panel(direction="w")
+            self.walk_until_extract_panel(direction="w")
         else:
             self.exit_state[1] = self.try_open_exit(direction="w")
             # self.sleep(0.5)
