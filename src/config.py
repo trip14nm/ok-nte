@@ -3,7 +3,6 @@
 import os
 
 from ok import Box, ConfigOption
-
 from src.interaction.NTEInteraction import NTEInteraction
 from src.process_feature import process_feature
 
@@ -126,7 +125,9 @@ config = {
             "discord": "https://discord.gg/vVyCatEBgA",
             "sponsor": "https://ko-fi.com/bnanz",
             "share": "Download from https://github.com/BnanZ0/ok-nte",
+            "qq_group": "https://qm.qq.com/q/bIiSLoUTVS",
             "faq": "https://github.com/BnanZ0/ok-nte",
+            "qq_channel": "https://pd.qq.com/s/djmm6l44y",
         }
     },
     "about": """
