@@ -515,7 +515,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "librosa", specifier = ">=0.11.0" },
-    { name = "ok-script", specifier = ">=1.0.143" },
+    { name = "ok-script", specifier = ">=1.0.148" },
     { name = "onnxocr-ppocrv5", specifier = ">=0.0.18" },
     { name = "opencc", specifier = ">=1.2.0" },
     { name = "opencv-python", specifier = ">=4.13.0.92" },
@@ -531,7 +531,7 @@ dev = [{ name = "polib", specifier = ">=1.2.0" }]
 
 [[package]]
 name = "ok-script"
-version = "1.0.143"
+version = "1.0.148"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "mouse" },
@@ -544,9 +544,9 @@ dependencies = [
     { name = "requests" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b4/cf/d877d97d146ee6374bf67951abf06b5b5675516fb07268800762d2a1e7ac/ok_script-1.0.143.tar.gz", hash = "sha256:9dc701d92012b43a733d1a51d6816e17bb3e9c730308ea59f8aeb4adaeb81e73", size = 5234117, upload-time = "2026-05-26T10:10:39.583Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/14/bd/d1808ee54ad5adc5ed2c65da68354430f5ef9be326628bf430239601527c/ok_script-1.0.148.tar.gz", hash = "sha256:f2d6c1a5e5f0d617ee4be52a3d375f89b3c081202e9446409ec3a71d2b25eb72", size = 611320, upload-time = "2026-05-30T03:43:32.498Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/11/1e/d702da95c4d89b8342b5e73fbd663db45465dbcb63a21806b1d0b3573d57/ok_script-1.0.143-py3-none-any.whl", hash = "sha256:13badf65200773b4619215164e7c37bf5ce32c702d23e0319d115ae812d81211", size = 5434777, upload-time = "2026-05-26T10:10:36.663Z" },
+    { url = "https://files.pythonhosted.org/packages/8e/ee/1923a8d629a2f86ed6db6e004ef538a77e7dea3086f94da38f2d3a9a0970/ok_script-1.0.148-py3-none-any.whl", hash = "sha256:3da6a61d2a47bde0b093b9af248c16783c1359830f97a2c0be9ab89512b3712b", size = 680294, upload-time = "2026-05-30T03:43:29.503Z" },
 ]
 
 [[package]]
@@ -778,11 +778,11 @@ wheels = [
 
 [[package]]
 name = "pyappify"
-version = "1.0.2"
+version = "1.0.4"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/39/e5/597b9d4c36d94bc30da6ee71df22eee0d225d9f532aebb87009bccc8ce7f/pyappify-1.0.2.tar.gz", hash = "sha256:32219317728c00fe28e7f46e0b64fd512ad19b9c9f7215ee9af80eabdabf426e", size = 3511, upload-time = "2025-07-09T15:40:42.701Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e8/3b/9538e43076a15c8847c119a03439260242eaa6b5c81ae72a7575cf9f6fd4/pyappify-1.0.4.tar.gz", hash = "sha256:a39817944944736265cf26f12014479b534d66e1c71463c7e40164280cba5cf6", size = 6341, upload-time = "2026-05-30T04:43:52.543Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/99/be/23071230f28072745ce9b249d6b9ee04c9e73341bf5035636af776dcfeff/pyappify-1.0.2-py3-none-any.whl", hash = "sha256:35f87fd87d75588c223be1eea1c4707be752026231a7d0add3f9a92bba8f99ba", size = 3557, upload-time = "2025-07-09T15:40:41.808Z" },
+    { url = "https://files.pythonhosted.org/packages/c0/c7/947450fb460ec7f0673f5e1dacc997329bbf1114b236af26e8caada6afce/pyappify-1.0.4-py3-none-any.whl", hash = "sha256:ea27d4098f9168880d2bbf939838cbfa67d7203298c15d50e15e5e8649b38b29", size = 4401, upload-time = "2026-05-30T04:43:51.277Z" },
 ]
 
 [[package]]
