@@ -78,10 +78,6 @@ jobs:
       - name: Check release version
         id: release-version
         shell: pwsh
-        run: |
-      - name: Check release version
-        id: release-version
-        shell: pwsh
         env:
           REF_NAME: ${{ github.ref_name }}
         run: |
