@@ -67,6 +67,14 @@ class OwnerSelectionTask(NTEOneTimeTask, RecordTask):
         self.info_set("失败原因", None)
         self.log_info(f"开始店长特供，共 {rounds} 轮")
 
+        self.wait_until(
+            lambda: not self.is_in_team(),
+            pre_action=lambda: self.send_key("f", interval=1),
+            settle_time=0.5,
+            time_out=10,
+            raise_if_not_found=True,
+        )
+
         while round_index <= rounds:
             self.log_info(f"开始第 {round_index} 轮")
 
@@ -91,38 +99,17 @@ class OwnerSelectionTask(NTEOneTimeTask, RecordTask):
         # 步骤1：按 F 进入店长特供页面
         self.info_set("当前阶段", "进入店长特供")
         self.wait_until(
-            lambda: not self.is_in_team(),
-            pre_action=lambda: self.send_key("f", interval=1),
-            settle_time=0.5,
-            time_out=10,
+            lambda: self.find_confirm(box=self.box_of_screen(0.922, 0.889, 0.969, 0.972)),
+            time_out=60,
             raise_if_not_found=True,
+            settle_time=0.25,
         )
         self.sleep(0.5)
         self.record_or_replay_operations(2, instruction_text=self.tr(RECORD_INS))
         self.sleep(0.5)
         # 步骤2：点击开始玩法
         self.info_set("当前阶段", "开始玩法")
-        start_box = self.box_of_screen(0.922, 0.889, 0.969, 0.972, name="start_btn", hcenter=True)
-        button = self.wait_until(
-            lambda: self.find_one(Labels.skip_quest_confirm, box=start_box),
-            settle_time=0.5,
-            time_out=10,
-            raise_if_not_found=True,
-        )
-        self.sleep(0.5)
-
-        change_char_box = self.box_of_screen(
-            0.630, 0.889, 0.679, 0.969, name="change_char_btn", hcenter=True
-        )
-        self.wait_until(
-            lambda: not self.find_one(Labels.skip_quest_confirm, box=change_char_box),
-            pre_action=lambda: self.operate_click(button, interval=1),
-            settle_time=0.5,
-            time_out=10,
-            raise_if_not_found=True,
-        )
-        self.sleep(0.5)
-
+        self.wait_click_confirm(range=(0.922, 0.889, 0.969, 0.972))
         # 步骤3：循环点击 + OCR 检测营业额
         self.info_set("当前阶段", "营业中")
         if not self.run_until_target_revenue():
@@ -130,24 +117,11 @@ class OwnerSelectionTask(NTEOneTimeTask, RecordTask):
 
         # 步骤4：关闭结果界面 → 结算确认
         self.info_set("当前阶段", "结算确认")
-        claim_box = self.box_of_screen(0.629, 0.734, 0.688, 0.819, name="claim_btn", hcenter=True)
-        button = self.wait_until(
-            lambda: self.find_one(Labels.skip_quest_confirm, box=claim_box),
-            pre_action=lambda: self.operate_click(*self.POS_CLOSE, interval=1),
-            settle_time=0.5,
-            time_out=10,
-            raise_if_not_found=True,
+        self.wait_click_confirm(
+            action=lambda: self.operate_click(*self.POS_CLOSE, interval=1),
+            range=(0.629, 0.734, 0.688, 0.819),
         )
         self.sleep(0.5)
-
-        self.wait_until(
-            lambda: not self.find_one(Labels.skip_quest_confirm, box=claim_box),
-            pre_action=lambda: self.operate_click(button, interval=1),
-            time_out=10,
-            raise_if_not_found=True,
-        )
-        self.sleep(0.5)
-
         self.info_set("当前阶段", "本轮完成")
         return True
 
