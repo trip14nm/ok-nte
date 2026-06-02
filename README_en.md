@@ -13,6 +13,11 @@
     <a href="https://github.com/BnanZ0/ok-nte/releases"><img src="https://img.shields.io/github/v/release/BnanZ0/ok-nte" alt="Latest Release"></a>
     <a href="https://discord.gg/vVyCatEBgA"><img alt="Discord" src="https://img.shields.io/discord/296598043787132928?color=5865f2&label=%20Discord"></a>
   </p>
+
+  <p>
+    <strong>💖 Like this project?</strong><br>
+    <a href="https://github.com/BnanZ0/ok-nte">Lighten the star⭐</a> &nbsp;|&nbsp; <a href="./SPONSOR.md">Sponsor the developer☕</a>
+  </p>
 </div>
 
 ## ⚠️ Disclaimer
@@ -150,7 +155,6 @@ If the solutions above do not resolve your issue, feel free to report it via [**
 * Ash Echoes (discontinued) [https://github.com/ok-oldking/ok-baijing](https://github.com/ok-oldking/ok-baijing)
 
 ## ❤️ Support & Acknowledgments
-*   Like this project? [Lighten the star⭐](https://github.com/BnanZ0/ok-nte)
 
 ### Contributors
 

@@ -13,6 +13,11 @@
     <a href="https://github.com/BnanZ0/ok-nte/releases"><img src="https://img.shields.io/github/v/release/BnanZ0/ok-nte" alt="最新版本"></a>
     <a href="https://discord.gg/vVyCatEBgA"><img alt="Discord" src="https://img.shields.io/discord/296598043787132928?color=5865f2&label=%20Discord"></a>
   </p>
+
+  <p>
+    <strong>💖 喜欢本项目？</strong><br>
+    <a href="https://github.com/BnanZ0/ok-nte">点亮小星星⭐</a> &nbsp;|&nbsp; <a href="./SPONSOR.md">赞助开发者☕</a>
+  </p>
 </div>
 
 ## ⚠️ 免责声明
@@ -174,8 +179,6 @@ or consequences are not associated with this software.
 * 白荆回廊(停止更新) [https://github.com/ok-oldking/ok-baijing](https://github.com/ok-oldking/ok-baijing)
 
 ## ❤️ 赞助与致谢
-
-* 喜欢本项目? [点亮小星星⭐](https://github.com/BnanZ0/ok-nte) 或 [赞助开发者](./.github/sponsor.md)!
 
 ### 贡献者
 
