@@ -142,8 +142,7 @@ class OwnerSelectionTask(NTEOneTimeTask, RecordTask):
 
         self.wait_until(
             lambda: not self.find_one(Labels.skip_quest_confirm, box=claim_box),
-            pre_action=lambda: self.operate_click(button, interval=2),
-            settle_time=0.5,
+            pre_action=lambda: self.operate_click(button, interval=1),
             time_out=10,
             raise_if_not_found=True,
         )
