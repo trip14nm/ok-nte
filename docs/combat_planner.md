@@ -128,6 +128,8 @@ reservation 查询。
 
 - `ULTIMATE_ACTION`：Q。已经包含 Q 的默认输出价值。
 - `SKILL_ACTION`：E。已经包含 E 的默认输出价值。
+- `ARC_ACTION`：弧盘动作，评分为 0。`BaseChar.perform()` 会统一先按一次 arc，
+  普通角色不需要把 arc 放进 planner 动作链。
 - `SUPPORT`：辅助/治疗/增益类动作。
 - `COORDINATION`：发布协作路线或窗口的动作。
 - `COORDINATION_FINISHER`：协作完成后的收尾动作。
@@ -165,6 +167,8 @@ reservation 查询。
 
 - `SKILL`：E。
 - `ULTIMATE`：Q。
+- `ARC`：弧盘。通常只用于 route/reservation 精确匹配；普通角色由
+  `BaseChar.perform()` 统一按一次。
 - `ENTRY_REACTION`：入场/环合反应，不是按键 action。
 - `FIELD_TIME`：planner 内建站场。
 - `LEGACY_COMBO`：旧出招表。

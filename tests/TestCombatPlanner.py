@@ -143,6 +143,7 @@ class PublicApiChar(BaseChar):
         self._max_field_time = max_field_time
         self.skill_clicked = 0
         self.ultimate_clicked = 0
+        self.arc_clicked = 0
         self.normal_attack_time = 0
 
     def __repr__(self):
@@ -169,6 +170,10 @@ class PublicApiChar(BaseChar):
 
     def click_ultimate(self, *args, **kwargs):
         self.ultimate_clicked += 1
+        return True
+
+    def click_arc(self, *args, **kwargs):
+        self.arc_clicked += 1
         return True
 
     def continues_normal_attack(self, duration):
@@ -764,6 +769,27 @@ class TestCombatPlanner(unittest.TestCase):
         self.assertEqual(char.skill_clicked, 1)
         self.assertEqual(char.ultimate_clicked, 1)
         self.assertEqual(result.name, "api_char_ultimate")
+
+    def test_basechar_arc_helper_is_zero_priority_arc_slot(self):
+        task = FakeTask()
+        char = PublicApiChar(
+            task,
+            0,
+            "api_char",
+            lambda source, _: source.intents(source.click_arc_action()),
+        )
+        context = CombatPlanner(task).context_for(char)
+
+        action = char.combat_intents(context)[0]
+        result = action.run(context)
+
+        self.assertEqual(action.slot, ActionSlot.ARC)
+        self.assertEqual(action.tags, {ActionTag.ARC_ACTION})
+        self.assertFalse(action.is_priority_ready(context))
+        self.assertTrue(result.success)
+        self.assertEqual(result.slot, ActionSlot.ARC)
+        self.assertEqual(result.tags, {ActionTag.ARC_ACTION})
+        self.assertEqual(char.arc_clicked, 1)
 
     def test_basechar_click_helpers_run_after_execute_hooks(self):
         calls = []
