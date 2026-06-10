@@ -382,7 +382,7 @@ class CombatCheck(BaseNTETask):
                         is_valid = True
             if not is_valid:
                 self.log_info("find_target cause contour analysis failed")
-            target = is_valid
+                target = is_valid
 
         return target
 
