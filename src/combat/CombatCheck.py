@@ -311,7 +311,7 @@ class CombatCheck(BaseNTETask):
 
             @cache
             def has_target():
-                return self.openvino_detect_async(mask_regions=self._TARGET_MASK_REGIONS)
+                return self.find_target()
 
             @cache
             def has_lv():
@@ -345,11 +345,16 @@ class CombatCheck(BaseNTETask):
     def combat_detect(self, frame=None, target=True, lv=True):
         if lv and self.find_lv(frame=frame):
             return True
-        if target and self.openvino_detect_sync(
-            frame=frame, mask_regions=self._TARGET_MASK_REGIONS
+        if target and self.find_target(
+            frame=frame, sync=True
         ):
             return True
         return False
+
+    def find_target(self, sync=False, frame=None, force=False):
+        return self.openvino_detect(
+            frame=frame, sync=sync, force=force, mask_regions=self._TARGET_MASK_REGIONS
+        )
 
     def find_lv_async(self, frame=None, force=False):
         ret = self._lv_async
@@ -387,9 +392,7 @@ class CombatCheck(BaseNTETask):
         is_lv_false = not lv or lv_ret is False
 
         if target and (exhaustive or is_lv_false):
-            target_ret = self.openvino_detect_async(
-                frame=frame, force=force, mask_regions=self._TARGET_MASK_REGIONS
-            )
+            target_ret = self.find_target(frame=frame, force=force)
             if target_ret:
                 return True
 

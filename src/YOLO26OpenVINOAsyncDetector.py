@@ -221,9 +221,11 @@ class YOLO26OpenVINOAsyncDetector:
             if canvas_x1 < canvas_x2 and canvas_y1 < canvas_y2:
                 canvas[canvas_y1:canvas_y2, canvas_x1:canvas_x2] = 114
 
-    def detect_sync(self, image, box=None, threshold=0.5, label="target", mask_regions=None):
+    def detect_sync(
+        self, image, box=None, threshold=0.5, label="target", force=False, mask_regions=None
+    ):
         """同步检测版本：发起请求后立即堵住，直到拿到结果"""
-        self.detect(image, box, threshold, label, mask_regions=mask_regions)
+        self.detect(image, box, threshold, label, force=force, mask_regions=mask_regions)
         self.wait()
         return self.latest_results
 
