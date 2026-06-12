@@ -72,6 +72,9 @@ class NewCharDialog(MessageBoxBase):
         )
         self.viewLayout.addWidget(img_label, alignment=Qt.AlignmentFlag.AlignCenter)
 
+        self.tip_label = BodyLabel(og.app.tr("※ 列表可直接输入并创建"))
+        self.viewLayout.addWidget(self.tip_label, alignment=Qt.AlignmentFlag.AlignCenter)
+
         self.existing_chars = list(self.manager.get_all_characters().keys())
         self.char_combo = SearchableComboBox()
         self.char_combo.setPlaceholderText(self.tr_name_ph)
@@ -247,7 +250,7 @@ class FixedTeamSlotCard(CardWidget):
         self.index = index
         self.manager = manager
         self.tr_slot_title = og.app.tr("{} 号位")
-        self.tr_char_ph = og.app.tr("角色")
+        self.tr_char_ph = og.app.tr("输入或选择角色")
         self.tr_combo_ph = COMBO
 
         self.shadow_effect = QGraphicsDropShadowEffect(self)
@@ -352,7 +355,10 @@ class TeamManagerTab(CustomTab):
         self.tr_no_feature = og.app.tr("未获取到特征")
         self.tr_scan_task_missing = og.app.tr("自动战斗任务不可用")
         self.tr_name_tab = TEAM_MANAGEMENT
-        self.tr_scan_desc = og.app.tr("不扫描也可自动战斗，将使用通用脚本")
+        self.tr_scan_desc = og.app.tr(
+            "※ 关联角色特征后，软件将能自动识别角色并使用绑定的出招表；未关联时，将使用通用脚本。\n"
+            "游戏内换人/换队自动适配，无需手动调整"
+        )
         self.tr_fixed_team_title = og.app.tr("固定队伍")
         self.tr_fixed_team_enabled = og.app.tr("已启用 {}/4")
         self.tr_fixed_team_saved = og.app.tr("已保存 {}/4")
@@ -364,6 +370,8 @@ class TeamManagerTab(CustomTab):
         self.tr_clear_fixed_team = og.app.tr("清空")
         self.tr_fill_failed_title = og.app.tr("没有可用扫描结果")
         self.tr_fill_failed_desc = og.app.tr("先扫描或手动填写")
+        self.tr_fixed_team_invalid_title = og.app.tr("固定队伍配置无效")
+        self.tr_fixed_team_invalid_desc = og.app.tr("请先填入前方槽位，或清空后续槽位")
         self.tr_fill_partial_title = og.app.tr("已填入扫描结果")
         self.tr_fill_partial_desc = og.app.tr("已填入 {}")
         self.tr_save_success_title = tr_fmt(
@@ -380,8 +388,24 @@ class TeamManagerTab(CustomTab):
             "{fixed_team}已清空", fixed_team=self.tr_fixed_team_title
         )
         self.tr_clear_success_desc = og.app.tr("已清空槽位")
-        self.tr_fixed_team_desc = og.app.tr(
-            "将优先使用固定角色进行战斗，未启用或槽位为空时自动识别"
+        self.tr_fixed_team_desc = tr_fmt(
+            "※ {fixed_team}按顺序读取，若前方有空置槽位，后续配置将被忽略。\n"
+            "如果游戏内切换队伍, 需要在软件里手动修改。",
+            fixed_team=self.tr_fixed_team_title,
+        )
+        self.tr_scan_status_active = og.app.tr(
+            '<span style="color: #2ecc71;">● 自动识别：已启用</span>'
+        )
+        self.tr_scan_status_paused = og.app.tr(
+            '<span style="color: #95a5a6;">○ 自动识别：已停用</span>'
+        )
+        self.tr_fixed_team_status_active = tr_fmt(
+            '<span style="color: #2ecc71;">● {fixed_team}：已启用 ({count}/4)</span>',
+            fixed_team=self.tr_fixed_team_title,
+        )
+        self.tr_fixed_team_status_empty = tr_fmt(
+            '<span style="color: #95a5a6;">○ {fixed_team}：已停用</span>',
+            fixed_team=self.tr_fixed_team_title,
         )
         self.tr_scan_tips = tr_fmt(
             '关联 <b style="color: #0078d7;">角色特征</b> 后将自动判断当前角色。<br>'
@@ -392,7 +416,7 @@ class TeamManagerTab(CustomTab):
         self.tr_fixed_team_tips = tr_fmt(
             '<b style="color: #0078d7;">角色</b> 和 '
             '<b style="color: #0078d7;">{combo}</b> '
-            '支持输入并创建，也支持选择已有项。',
+            "支持输入并创建，也支持选择已有项。",
             combo=COMBO,
         )
 
@@ -411,13 +435,21 @@ class TeamManagerTab(CustomTab):
         self.scan_layout.setSpacing(12)
 
         self.scan_header = QHBoxLayout()
+        self.scan_header_text = QVBoxLayout()
+        self.scan_title_row = QHBoxLayout()
         self.scan_title = SubtitleLabel(self.tr_scan_btn)
-        self.scan_header.addWidget(self.scan_title)
+        self.scan_title_row.addWidget(self.scan_title)
 
         self.scan_info_btn = TransparentToolButton(FluentIcon.INFO, self)
         self.scan_info_btn.clicked.connect(self.show_scan_flyout)
-        self.scan_header.addWidget(self.scan_info_btn, alignment=Qt.AlignmentFlag.AlignLeft)
-        self.scan_header.addStretch(1)
+        self.scan_title_row.addWidget(self.scan_info_btn, alignment=Qt.AlignmentFlag.AlignLeft)
+        self.scan_title_row.addStretch(1)
+
+        self.scan_status = BodyLabel()
+        self.scan_status.setWordWrap(True)
+        self.scan_header_text.addLayout(self.scan_title_row)
+        self.scan_header_text.addWidget(self.scan_status)
+        self.scan_header.addLayout(self.scan_header_text, 1)
 
         self.scan_btn = PrimaryPushButton(FluentIcon.SYNC, self.tr_scan_btn)
         self.scan_btn.clicked.connect(self.on_scan_clicked)
@@ -484,6 +516,7 @@ class TeamManagerTab(CustomTab):
         self.fixed_team_slots: list[FixedTeamSlotCard] = []
         for i in range(4):
             card = FixedTeamSlotCard(i, self.manager, self)
+            card.char_combo.currentTextChanged.connect(self.update_fixed_team_status)
             self.fixed_team_slots.append(card)
             self.fixed_team_slots_layout.addWidget(card)
         self.fixed_team_layout.addLayout(self.fixed_team_slots_layout)
@@ -503,11 +536,11 @@ class TeamManagerTab(CustomTab):
     @property
     def name(self) -> Literal["CustomTab"]:
         return self.tr_name_tab  # type: ignore
-    
+
     @property
     def executor(self):
         return self.owner.executor if self.owner else self._executor
-    
+
     @executor.setter
     def executor(self, value):
         self._executor = value
@@ -527,10 +560,17 @@ class TeamManagerTab(CustomTab):
     def _collect_fixed_team_slots(self, persist=False):
         slots = []
         filled_count = 0
+        effective_count = 0
+        has_empty = False
+        has_ignored = False
         for card in self.fixed_team_slots:
             char_name, combo_ref = card.get_data()
             if char_name:
                 filled_count += 1
+                if has_empty:
+                    has_ignored = True
+                else:
+                    effective_count += 1
                 if persist:
                     if (
                         combo_ref
@@ -540,6 +580,7 @@ class TeamManagerTab(CustomTab):
                         self.manager.add_combo(combo_ref, "")
                     self.manager.add_character(char_name, combo_ref)
             else:
+                has_empty = True
                 combo_ref = ""
             slots.append(
                 {
@@ -547,11 +588,29 @@ class TeamManagerTab(CustomTab):
                     "combo_ref": combo_ref,
                 }
             )
-        return slots, filled_count
+        return slots, filled_count, effective_count, has_ignored
 
     def reload_fixed_team_options(self):
         for card in self.fixed_team_slots:
             card.reload_options()
+
+    def update_fixed_team_status(self):
+        fixed_team = self.manager.get_fixed_team()
+        enabled = fixed_team.get("enabled", False)
+
+        _, filled_count, effective_count, _ = self._collect_fixed_team_slots()
+
+        if enabled and filled_count:
+            status_text = self.tr_fixed_team_status_active.format(count=effective_count)
+            self.fixed_team_status.setText(status_text)
+            self.scan_status.setText(self.tr_scan_status_paused)
+            self.save_fixed_team_btn.setText(self.tr_update_fixed_team)
+            self.disable_fixed_team_btn.setEnabled(True)
+        else:
+            self.fixed_team_status.setText(self.tr_fixed_team_status_empty)
+            self.scan_status.setText(self.tr_scan_status_active)
+            self.save_fixed_team_btn.setText(self.tr_save_fixed_team)
+            self.disable_fixed_team_btn.setEnabled(False)
 
     def refresh_fixed_team_state(self):
         fixed_team = self.manager.get_fixed_team()
@@ -559,20 +618,7 @@ class TeamManagerTab(CustomTab):
         for i, card in enumerate(self.fixed_team_slots):
             slot = slots[i] if i < len(slots) else {}
             card.set_data(slot.get("char_name", ""), slot.get("combo_ref", ""))
-
-        filled_count = sum(1 for slot in slots if slot.get("char_name"))
-        if fixed_team.get("enabled") and filled_count:
-            self.fixed_team_status.setText(self.tr_fixed_team_enabled.format(filled_count))
-            self.save_fixed_team_btn.setText(self.tr_update_fixed_team)
-            self.disable_fixed_team_btn.setEnabled(True)
-        elif filled_count:
-            self.fixed_team_status.setText(self.tr_fixed_team_saved.format(filled_count))
-            self.save_fixed_team_btn.setText(self.tr_save_fixed_team)
-            self.disable_fixed_team_btn.setEnabled(False)
-        else:
-            self.fixed_team_status.setText(self.tr_fixed_team_empty)
-            self.save_fixed_team_btn.setText(self.tr_save_fixed_team)
-            self.disable_fixed_team_btn.setEnabled(False)
+        self.update_fixed_team_status()
 
     def on_scan_clicked(self):
         og.app.start_controller.handler.post(self.scan_team)
@@ -642,13 +688,22 @@ class TeamManagerTab(CustomTab):
         self._show_bar(self.tr_fill_partial_title, self.tr_fill_partial_desc.format(filled_count))
 
     def on_save_fixed_team(self):
-        slots, filled_count = self._collect_fixed_team_slots(persist=True)
+        slots, filled_count, _, has_ignored = self._collect_fixed_team_slots()
+        if has_ignored:
+            self._show_bar(
+                self.tr_fixed_team_invalid_title,
+                self.tr_fixed_team_invalid_desc,
+                success=False,
+            )
+            return
+
         if filled_count == 0:
             self.manager.clear_fixed_team()
             self.refresh_fixed_team_state()
             char_manager_signals.refresh_tab.emit()
             self._show_bar(self.tr_clear_success_title, self.tr_clear_success_desc)
         else:
+            self._collect_fixed_team_slots(persist=True)
             self.manager.set_fixed_team(True, slots)
             self.refresh_fixed_team_state()
             char_manager_signals.refresh_tab.emit()
