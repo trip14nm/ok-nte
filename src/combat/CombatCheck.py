@@ -185,10 +185,13 @@ class CombatCheck(BaseNTETask):
         return False
 
     def in_combat(self, target=False):
+        self.in_sleep_check = True
         try:
             return self.do_check_in_combat(target)
         except Exception as e:
             logger.error("do_check_in_combat", e)
+        finally:
+            self.in_sleep_check = False
 
     @property
     def combat_detect_uncertain(self) -> bool:
