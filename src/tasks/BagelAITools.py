@@ -145,7 +145,7 @@ class BagelAITools(NTEOneTimeTask, BaseNTETask):
     def BASE_BAGEL_I18N(self):
         try:
             _i18n_cache = {}
-            json_path = get_path_relative_to_exe("assets", "bagel_presets.json")
+            json_path = get_path_relative_to_exe("assets", "presets", "bagel.json")
             with open(json_path, "r", encoding="utf-8") as f:
                 _i18n_cache = json.load(f)
         except Exception as e:
