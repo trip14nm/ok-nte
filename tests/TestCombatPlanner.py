@@ -67,6 +67,7 @@ class FakeChar:
         self._max_field_time = max_field_time
         self._combat_start_priority = combat_start_priority
         self._cycle_full = cycle_full
+        self.is_dead = False
         self.waited = 0
         self.intent_calls = 0
 
@@ -328,6 +329,17 @@ class TestCombatPlanner(unittest.TestCase):
 
         self.assertEqual(decision.target, high)
         self.assertEqual(decision.reason, "combat start priority")
+
+    def test_combat_start_skips_dead_characters(self):
+        current = FakeChar(0, "current")
+        dead_high = FakeChar(1, "dead_high", combat_start_priority=100)
+        alive_low = FakeChar(2, "alive_low", combat_start_priority=20)
+        dead_high.is_dead = True
+        planner = self._planner([current, dead_high, alive_low])
+
+        decision = planner.decide_combat_start_char(current)
+
+        self.assertEqual(decision.target, alive_low)
 
     def test_action_intent_auto_builds_result(self):
         action = ActionIntent(
@@ -622,6 +634,17 @@ class TestCombatPlanner(unittest.TestCase):
         self.assertEqual(decision.target, nanally)
         self.assertIn("nanally_ultimate", decision.reason)
         self.assertIsNone(decision.expected_entry)
+
+    def test_normal_switch_skips_dead_characters(self):
+        current = self._support(0, "current")
+        dead_dps = self._main_dps(1, "dead_dps")
+        alive_support = self._support(2, "alive_support")
+        dead_dps.is_dead = True
+        planner = self._planner([current, dead_dps, alive_support])
+
+        decision = planner.decide_switch(current)
+
+        self.assertEqual(decision.target, alive_support)
 
     def test_switch_decision_includes_debug_score_explanation(self):
         current = self._support(0, "current")
@@ -1043,6 +1066,58 @@ class TestCombatPlanner(unittest.TestCase):
         decision = planner.decide_switch(jiuyuan)
 
         self.assertEqual(decision.target, zero)
+
+    def test_strict_route_does_not_switch_to_dead_target(self):
+        hotori = FakeChar(0, "hotori", field_preference=FieldPreference.SETUP_ONLY)
+        zero = FakeChar(1, "zero", tags={ActionTag.SKILL_ACTION})
+        zero.is_dead = True
+        planner = self._planner([hotori, zero])
+        self._publish(
+            planner,
+            hotori,
+            lambda context: context.request_route(
+                [FollowupStep.for_action(zero, ActionSlot.SKILL, reason="Zero E")],
+                reason="dead target route",
+            ),
+        )
+
+        decision = planner.decide_switch(hotori)
+
+        self.assertEqual(decision.target, hotori)
+        self.assertEqual(decision.reason, "no switch target")
+        self.assertIsNone(planner.state.locked_route)
+
+    def test_strict_route_skips_optional_dead_target(self):
+        hotori = FakeChar(0, "hotori", field_preference=FieldPreference.SETUP_ONLY)
+        dead_support = FakeChar(1, "dead_support", tags={ActionTag.SKILL_ACTION})
+        live_support = FakeChar(2, "live_support", tags={ActionTag.SKILL_ACTION})
+        dead_support.is_dead = True
+        planner = self._planner([hotori, dead_support, live_support])
+        self._publish(
+            planner,
+            hotori,
+            lambda context: context.request_route(
+                [
+                    FollowupStep.for_action(
+                        dead_support,
+                        ActionSlot.SKILL,
+                        reason="dead optional E",
+                        optional=True,
+                    ),
+                    FollowupStep.for_action(
+                        live_support,
+                        ActionSlot.SKILL,
+                        reason="live required E",
+                    ),
+                ],
+                reason="skip dead optional route",
+            ),
+        )
+
+        decision = planner.decide_switch(hotori)
+
+        self.assertEqual(decision.target, live_support)
+        self.assertIn("live required E", decision.reason)
 
     def test_request_route_chains_same_target_steps_in_one_entry(self):
         calls = []
