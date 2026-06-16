@@ -97,7 +97,6 @@ jobs:
           $isRelease = $tag -match '^v?\d+\.\d+\.\d+$'
           "is_release=$($isRelease.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
           Write-Host "Release version: $isRelease"
-          Write-Host "Release version: $isRelease"
 
       - name: Build with PyAppify Action
         if: steps.release-version.outputs.is_release == 'true'
