@@ -58,6 +58,7 @@ class YOLO26OpenVINOAsyncDetector:
         self.class_names = ["target"]  # 可根据 data.yaml 修改
         self.latency = 0.0  # 单次推理总耗时 (秒)
         self.job_id = 0
+        self._zombie_queues = []
         self.infer_queue = self._create_infer_queue()
 
     def _create_infer_queue(self):
@@ -65,13 +66,20 @@ class YOLO26OpenVINOAsyncDetector:
         infer_queue.set_callback(self._callback)
         return infer_queue
 
+    def _get_active_retired_count(self):
+        with self._state_lock:
+            return sum(
+                1 for q in self._retired_infer_queues
+                if self._active_queue_jobs.get(id(q), 0) > 0
+            )
+
     def _cleanup_retired_infer_queues(self):
         with self._state_lock:
-            self._retired_infer_queues = [
-                infer_queue
-                for infer_queue in self._retired_infer_queues
-                if self._active_queue_jobs.get(id(infer_queue), 0) > 0
-            ]
+            # 必须延迟销毁队列！如果因为 active_jobs 降为 0 就立刻从列表中移除对象，
+            # 此时 C++ 回调线程可能尚未完全退出。Python GC 此时调用析构函数，
+            # 将导致 GIL 锁死，造成软件完全卡死且无法恢复。
+            while len(self._retired_infer_queues) > 10:
+                self._retired_infer_queues.pop(0)
 
     def _mark_queue_job_started(self, infer_queue):
         with self._state_lock:
@@ -98,12 +106,16 @@ class YOLO26OpenVINOAsyncDetector:
             self._cleanup_retired_infer_queues()
             if self.infer_queue.is_ready():
                 return True
-            if len(self._retired_infer_queues) >= self._MAX_RETIRED_INFER_QUEUES:
+            if self._get_active_retired_count() >= self._MAX_RETIRED_INFER_QUEUES:
                 return False
 
-            # Keep one busy queue alive so replacing it does not wait for its
-            # running request. More than one retired queue can saturate CPU
-            # threads and make the app appear frozen during repeated force=True.
+            # Cancel current queue's requests so it stops stealing CPU immediately
+            try:
+                for req in self.infer_queue:
+                    req.cancel()
+            except Exception:
+                pass
+
             self._retired_infer_queues.append(self.infer_queue)
             self.infer_queue = self._create_infer_queue()
             self.job_id += 1
@@ -168,6 +180,9 @@ class YOLO26OpenVINOAsyncDetector:
 
             self.latest_results = tmp_results
             self.latest_image = user_data.get("image")
+        except Exception:
+            # Task was likely cancelled via req.cancel()
+            pass
         finally:
             if queue_id is not None:
                 self._mark_queue_job_finished(queue_id)
@@ -337,11 +352,11 @@ class YOLO26OpenVINOAsyncDetector:
                 self.job_id += 1
                 if (
                     self._active_queue_jobs.get(id(self.infer_queue), 0) > 0
-                    and len(self._retired_infer_queues) < self._MAX_RETIRED_INFER_QUEUES
+                    and self._get_active_retired_count() < self._MAX_RETIRED_INFER_QUEUES
                 ):
                     self._retired_infer_queues.append(self.infer_queue)
                     self.infer_queue = self._create_infer_queue()
-                retired_count = len(self._retired_infer_queues)
+                retired_count = self._get_active_retired_count()
                 active_jobs = sum(self._active_queue_jobs.values())
             logger.warning(
                 "openvino sync detect timed out after "
@@ -359,8 +374,13 @@ class YOLO26OpenVINOAsyncDetector:
             self.job_id += 1  # 增加 epoch，所有正在运行的旧任务的回调都会失效
             if (
                 self._queue_has_active_jobs(self.infer_queue)
-                and len(self._retired_infer_queues) < self._MAX_RETIRED_INFER_QUEUES
+                and self._get_active_retired_count() < self._MAX_RETIRED_INFER_QUEUES
             ):
+                try:
+                    for req in self.infer_queue:
+                        req.cancel()
+                except Exception:
+                    pass
                 self._retired_infer_queues.append(self.infer_queue)
                 self.infer_queue = self._create_infer_queue()
         self._cleanup_retired_infer_queues()
