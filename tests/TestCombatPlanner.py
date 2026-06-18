@@ -47,6 +47,7 @@ class FakeChar:
         priority_ready=None,
         switch_in_guard=None,
         max_field_time=1.5,
+        elapsed=0,
         combat_start_priority=0,
         cycle_full=False,
     ):
@@ -65,6 +66,7 @@ class FakeChar:
         self._priority_ready = priority_ready
         self._switch_in_guard = switch_in_guard
         self._max_field_time = max_field_time
+        self._elapsed = elapsed
         self._combat_start_priority = combat_start_priority
         self._cycle_full = cycle_full
         self.is_dead = False
@@ -128,7 +130,7 @@ class FakeChar:
         return self._cycle_full
 
     def time_elapsed_accounting_for_freeze(self, start, intro_motion_freeze=False):
-        return 0
+        return self._elapsed
 
     def continues_normal_attack(self, duration):
         self.waited = duration
@@ -414,6 +416,31 @@ class TestCombatPlanner(unittest.TestCase):
         self.assertEqual(result.name, "planner_field_time")
         self.assertEqual(result.tags, {ActionTag.FIELD_TIME, ActionTag.DAMAGE})
         self.assertEqual(char.waited, 1.25)
+
+    def test_field_time_remaining_is_calculated_when_fallback_executes(self):
+        char = FakeChar(
+            0,
+            "main",
+            field_preference=FieldPreference.MAIN_DPS,
+            intents=lambda _: [
+                ActionIntent(
+                    name="main_skill",
+                    tags={ActionTag.SKILL_ACTION},
+                    execute=lambda _: False,
+                    reason="skill declared",
+                    priority_ready=lambda _: True,
+                )
+            ],
+            max_field_time=10,
+            elapsed=5,
+        )
+        planner = self._planner([char])
+
+        result = planner.perform_current_char(char)
+
+        self.assertEqual(result.name, "planner_field_time")
+        self.assertTrue(result.success)
+        self.assertEqual(char.waited, 5)
 
     def test_perform_current_char_can_chain_ultimate_and_skill(self):
         calls = []
