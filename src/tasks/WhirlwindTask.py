@@ -13,6 +13,7 @@ class WhirlwindTask(NTEOneTimeTask, BaseCombatTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.name = "自动小旋风"
+        self.description = "可交互「小旋风」下按开始"
         self.icon = FluentIcon.FLAG
 
     def run(self):
