@@ -29,6 +29,11 @@ class NTEInteraction(PostMessageInteraction):
         self.user32 = ctypes.windll.user32
         self.qwerty_physical_key_mapper = QwertyPhysicalKeyMapper()
         self._disable_key_mapping = 0
+        self._activate_require = False
+        self.hwnd_window.visible_monitors.append(self)
+
+    def on_visible(self, visible):
+        self._activate_require = not visible
 
     def send_key(self, key, down_time=0.01):
         with self._input_lock:
@@ -178,3 +183,9 @@ class NTEInteraction(PostMessageInteraction):
         mi = MOUSEINPUT(dx, dy, 0, 1, 0, None)
         i = INPUT(0, mi)  # type=0 indicates a mouse event
         SendInput(1, ctypes.pointer(i), ctypes.sizeof(INPUT))
+
+    def try_activate(self):
+        if self._activate_require:
+            if not self.hwnd_window.is_foreground():
+                super().try_activate()
+            self._activate_require = False
