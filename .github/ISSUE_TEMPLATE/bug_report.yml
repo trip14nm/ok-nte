@@ -51,6 +51,7 @@ body:
         - 否 (Once)
         - 大概率 (Often)
         - 小概率 (Rarely)
+      default: 3
     validations:
       required: true
 
