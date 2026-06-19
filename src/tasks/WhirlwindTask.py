@@ -48,15 +48,19 @@ class WhirlwindTask(NTEOneTimeTask, BaseCombatTask):
         self.wait_until(self.find_interac)
         self.send_key_up("w")
         self.wait_until(
-            lambda: not self.is_in_team(), pre_action=lambda: self.send_interac(handle_claim=False)
+            lambda: not self.is_in_team(),
+            pre_action=lambda: self.send_interac(handle_claim=False),
+            time_out=20,
         )
         self.wait_until(
-            self.is_in_team, pre_action=lambda: self.operate_click(0.701, 0.542, interval=2)
+            self.is_in_team,
+            pre_action=lambda: self.operate_click(0.701, 0.542, interval=2),
+            settle_time=1,
+            time_out=60,
         )
 
     def start_combat(self):
         if not self.is_boss():
-            self.wait_in_team(settle_time=1)
             self.send_key_down("w")
             self.sleep(0.2)
             self.send_key("lshift")
