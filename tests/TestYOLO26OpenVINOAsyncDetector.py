@@ -154,6 +154,18 @@ class TestYOLO26OpenVINOAsyncDetector(unittest.TestCase):
 
         self.assertEqual(detector.latest_results, ["newer"])
 
+    def test_cancelled_retired_queue_releases_active_job_immediately(self):
+        old_queue = FakeQueue(ready=False)
+        detector = self._detector([old_queue])
+        detector._mark_queue_job_started(old_queue)
+
+        detector._retire_queue(old_queue, cancel=True)
+
+        self.assertEqual(detector._get_active_retired_count(), 0)
+        self.assertNotIn(id(old_queue), detector._active_queue_jobs)
+        self.assertTrue(old_queue.requests[0].cancelled)
+        self.assertEqual(detector._retired_infer_queues[0]["queue"], old_queue)
+
 
 if __name__ == "__main__":
     unittest.main()
