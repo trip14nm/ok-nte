@@ -13,6 +13,10 @@ jobs:
 
     env:
       PYTHONIOENCODING: 'UTF-8'
+      SIGN_BUILD: 'false'
+      SIGN_SETUP: 'false'
+      BUILD_EXE: 'true'
+      USE_RELEASE: ''
 
     strategy:
       matrix:
@@ -89,6 +93,7 @@ jobs:
 
       - name: Check release version
         id: release-version
+        if: env.BUILD_EXE == 'true'
         shell: pwsh
         env:
           REF_NAME: ${{ github.ref_name }}
@@ -98,20 +103,80 @@ jobs:
           "is_release=$($isRelease.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
           Write-Host "Release version: $isRelease"
 
-      - name: Build with PyAppify Action
-        if: steps.release-version.outputs.is_release == 'true'
-        id: build-app
+      - name: pyappify build-exe-only use_release
+        id: build-exe-only-use_release
         uses: ok-oldking/pyappify-action@master #使用pyappify打包exe
+        if: env.BUILD_EXE == 'true' && steps.release-version.outputs.is_release == 'true' && env.USE_RELEASE != ''
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          build_exe_only: false
           # 使用上一个稳定版本的 Release 来获取已打包的启动器，从而跳过耗时的打包过程
-          use_release: https://api.github.com/repos/BnanZ0/ok-nte/releases/tags/v1.1.16
+          use_release: ${{ env.USE_RELEASE }}
+
+      - name: pyappify build-exe-only
+        id: build-exe-only
+        uses: ok-oldking/pyappify-action@master
+        if: env.BUILD_EXE == 'true' && steps.release-version.outputs.is_release == 'true' && env.USE_RELEASE == ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          build_exe_only: ${{ env.SIGN_BUILD == 'true' }}
+
+      - name: Upload unsigned EXE artifact
+        if: env.BUILD_EXE == 'true' && steps.release-version.outputs.is_release == 'true' && env.SIGN_BUILD == 'true' && env.USE_RELEASE == ''
+        id: upload-unsigned-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: to-sign
+          path: ${{ steps.build-exe-only.outputs.exe-path }}
+
+      - name: Sign EXE
+        if: env.BUILD_EXE == 'true' && steps.release-version.outputs.is_release == 'true' && env.SIGN_BUILD == 'true' && env.USE_RELEASE == ''
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '30cc9397-0ebf-4584-8030-12f4b872ecdc'
+          project-slug: 'ok-nte'
+          signing-policy-slug: 'release-signing'
+          artifact-configuration-slug: 'single-exe'
+          github-artifact-id: '${{ steps.upload-unsigned-artifact.outputs.artifact-id }}'
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 60000
+          output-artifact-directory: ${{ steps.build-exe-only.outputs.exe-folder }}
+
+      - name: pyappify build-setup-exe
+        if: env.BUILD_EXE == 'true' && steps.release-version.outputs.is_release == 'true' && env.SIGN_BUILD == 'true'
+        id: build-setup-exe
+        uses: ok-oldking/pyappify-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload unsigned setup EXE artifact
+        if: env.BUILD_EXE == 'true' && steps.release-version.outputs.is_release == 'true' && env.SIGN_BUILD == 'true' && env.SIGN_SETUP == 'true'
+        id: upload-unsigned-setup-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: setup-to-sign
+          path: pyappify_dist/*setup.exe
+          if-no-files-found: error
+
+      - name: Sign setup EXEs
+        if: env.BUILD_EXE == 'true' && steps.release-version.outputs.is_release == 'true' && env.SIGN_BUILD == 'true' && env.SIGN_SETUP == 'true'
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '30cc9397-0ebf-4584-8030-12f4b872ecdc'
+          project-slug: 'ok-nte'
+          signing-policy-slug: 'release-signing'
+          artifact-configuration-slug: 'setupexe'
+          github-artifact-id: '${{ steps.upload-unsigned-setup-artifact.outputs.artifact-id }}'
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 60000
+          output-artifact-directory: 'pyappify_dist'
 
       - name: Release
         uses: softprops/action-gh-release@v3
-        if: steps.release-version.outputs.is_release == 'true' && startsWith(github.ref, 'refs/tags/')
+        if: env.BUILD_EXE == 'true' && steps.release-version.outputs.is_release == 'true' && startsWith(github.ref, 'refs/tags/')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -133,7 +198,7 @@ jobs:
           files: pyappify_dist/*
 
       - name: Trigger MirrorChyanUploading
-        if: steps.release-version.outputs.is_release == 'true' && startsWith(github.ref, 'refs/tags/')
+        if: env.BUILD_EXE == 'true' && steps.release-version.outputs.is_release == 'true' && startsWith(github.ref, 'refs/tags/')
         shell: bash
         run: |
           gh workflow run --repo $GITHUB_REPOSITORY mirrorchyan_release.yml -f tag=${{ github.ref_name }}
