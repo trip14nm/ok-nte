@@ -4,13 +4,14 @@ from qfluentwidgets import FluentIcon
 
 from ok import TaskDisabledException
 from src.combat.BaseCombatTask import BaseCombatTask
+from src.Labels import Labels
 from src.sound_trigger.SoundCombatContext import SoundCombatContext
 from src.tasks.NTEOneTimeTask import NTEOneTimeTask
 
 
 class WhirlwindTask(NTEOneTimeTask, BaseCombatTask):
-    TARGET_NAVIGATION_ANGLE = -154.5
-    NAVIGATION_ANGLE_TOLERANCE = 4.5
+    TARGET_NAVIGATION_ANGLE = -156
+    NAVIGATION_ANGLE_TOLERANCE = 4
     NAVIGATION_FAILED_TIMEOUT = 4
     NAVIGATION_FAILED_RETRY_INTERVAL = 0.25
     NAVIGATION_CONFIRM_DELAY = 0.5
@@ -69,17 +70,24 @@ class WhirlwindTask(NTEOneTimeTask, BaseCombatTask):
         self.send_key(self.get_skill_key())
 
     def start_interac(self):
-        if self.is_in_team():
+        if not self.find_dialog_history():
             self.send_key("f", after_sleep=0.5)
             self.send_key_down("w")
             try:
                 self.wait_until(
-                    lambda: not self.is_in_team(),
-                    pre_action=lambda: self.send_key("f", interval=0.25),
-                    time_out=20,
+                    self.find_dialog_history,
+                    pre_action=self.scroll_and_interac,
+                    time_out=1.1,
                 )
             finally:
                 self.send_key_up("w")
+
+            self.wait_until(
+                self.find_dialog_history,
+                pre_action=self.scroll_and_interac,
+                time_out=30,
+                raise_if_not_found=True
+            )
 
         diff_option = self.config.get(self.CONFIG_DIFF_OPTION, 1)
         ratio_x = 0.701
@@ -90,6 +98,15 @@ class WhirlwindTask(NTEOneTimeTask, BaseCombatTask):
             pre_action=lambda: self.operate_click(ratio_x, ratio_y, interval=2),
             settle_time=1,
             time_out=60,
+        )
+
+    def scroll_and_interac(self):
+        if self.is_in_team() and self.send_key("f", interval=0.25):
+            self.scroll_relative(0.5, 0.5, -1)
+
+    def find_dialog_history(self):
+        return self.find_one(
+            Labels.dialog_history, threshold=0.8, box=self.default_box.dialog_icon_box
         )
 
     def start_combat(self):
@@ -173,10 +190,10 @@ class WhirlwindTask(NTEOneTimeTask, BaseCombatTask):
                         return True
                     side_key = self._navigation_side_key(angle)
 
-                if not self.is_in_team():
+                if self.find_dialog_history():
                     return True
 
-                self.send_key("f", interval=0.25)
+                self.scroll_and_interac()
                 now = time.time()
                 if now >= next_micro_tune:
                     self._micro_tune_after_clamp(side_key)
