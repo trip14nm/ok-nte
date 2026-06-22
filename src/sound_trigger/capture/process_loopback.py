@@ -485,7 +485,7 @@ class ProcessLoopbackSource(AudioCaptureSource):
                 pid = resolve_target_pid(self.process_name)
                 if pid is None:
                     now = time.time()
-                    if now - last_missing_log >= 5.0:
+                    if now - last_missing_log >= 30.0:
                         logger.info(f"Waiting for audio process {self.process_name}...")
                         last_missing_log = now
                     if self._stop.wait(PROCESS_WAIT_INTERVAL):
