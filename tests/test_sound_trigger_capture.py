@@ -39,6 +39,31 @@ class ProcessResolverTests(unittest.TestCase):
 
 class ProcessLoopbackTests(unittest.TestCase):
     @unittest.skipUnless(sys.platform == "win32", "WASAPI loopback is Windows-only")
+    def test_windows_sdk_struct_layouts_match_expected_sizes(self):
+        import ctypes
+
+        from src.sound_trigger.capture.process_loopback import (
+            AUDIOCLIENT_ACTIVATION_PARAMS,
+            AUDIOCLIENT_PROCESS_LOOPBACK_PARAMS,
+            WAVEFORMATEX,
+            WAVEFORMATEXTENSIBLE,
+        )
+
+        self.assertEqual(ctypes.sizeof(AUDIOCLIENT_PROCESS_LOOPBACK_PARAMS), 8)
+        self.assertEqual(ctypes.sizeof(AUDIOCLIENT_ACTIVATION_PARAMS), 12)
+        self.assertEqual(ctypes.sizeof(WAVEFORMATEX), 18)
+        self.assertEqual(ctypes.sizeof(WAVEFORMATEXTENSIBLE), 40)
+        self.assertEqual(WAVEFORMATEXTENSIBLE.dwChannelMask.offset, 20)
+        self.assertEqual(WAVEFORMATEXTENSIBLE.SubFormat.offset, 24)
+
+    @unittest.skipUnless(sys.platform == "win32", "WASAPI loopback is Windows-only")
+    def test_hresult_hex_formats_negative_and_positive_values(self):
+        from src.sound_trigger.capture.process_loopback import _hresult_hex
+
+        self.assertEqual(_hresult_hex(-1), "0xFFFFFFFF")
+        self.assertEqual(_hresult_hex(0x88890008), "0x88890008")
+
+    @unittest.skipUnless(sys.platform == "win32", "WASAPI loopback is Windows-only")
     def test_to_mono_averages_stereo_float32_samples(self):
         from src.sound_trigger.capture.process_loopback import _to_mono
 
