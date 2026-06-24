@@ -32,3 +32,6 @@ select = ["E", "F", "I"]
 
 [tool.ruff.format]
 quote-style = "double"
+
+[tool.ruff.lint.isort]
+known-third-party = ["ok"]
