@@ -3,7 +3,6 @@ from typing import NamedTuple
 
 import cv2
 import numpy as np
-
 from ok import BaseTask, Box
 
 

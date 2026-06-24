@@ -11,8 +11,8 @@ import win32api
 import win32con
 import win32gui
 import win32process
-
 from ok import BaseTask, Box, CannotFindException, Logger, WaitFailedException, og, safe_get
+
 from src.Labels import Labels
 from src.scene.NTEScene import NTEScene
 from src.scene.ScreenPosition import ScreenPosition

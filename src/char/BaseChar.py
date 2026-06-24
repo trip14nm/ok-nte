@@ -3,6 +3,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Callable
 
 from ok import Logger
+
 from src import text_white_color
 from src.combat.planner import (
     ActionExecutor,

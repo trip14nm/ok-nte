@@ -1,8 +1,8 @@
 import time
 
+from ok import TaskDisabledException
 from qfluentwidgets import FluentIcon
 
-from ok import TaskDisabledException
 from src.combat.BaseCombatTask import BaseCombatTask
 from src.Labels import Labels
 from src.sound_trigger.SoundCombatContext import SoundCombatContext

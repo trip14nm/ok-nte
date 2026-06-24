@@ -3,6 +3,7 @@
 import os
 
 from ok import Box, ConfigOption
+
 from src import GAME_EXE
 from src.interaction.NTEInteraction import NTEInteraction
 from src.process_feature import process_feature

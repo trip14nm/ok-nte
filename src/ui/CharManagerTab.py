@@ -8,6 +8,8 @@ import zipfile
 from pathlib import Path
 
 import requests
+from ok import og
+from ok.gui.widget.CustomTab import CustomTab
 from PySide6.QtCore import QEvent, Qt, QTimer, Signal, Slot
 from PySide6.QtWidgets import (
     QFileDialog,
@@ -40,8 +42,6 @@ from qfluentwidgets import (
     isDarkTheme,
 )
 
-from ok import og
-from ok.gui.widget.CustomTab import CustomTab
 from src.char.custom.CustomCharManager import CustomCharManager
 from src.ui.common import (
     COMBO,
