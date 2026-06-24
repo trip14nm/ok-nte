@@ -15,6 +15,7 @@ from src.combat.planner import (
     FieldClaim,
     FieldPreference,
     FollowupStep,
+    Planner,
     Role,
     RoleProfile,
     SwitchInGuard,
@@ -187,6 +188,17 @@ class PublicApiChar(BaseChar):
 
 
 class TestCombatPlanner(unittest.TestCase):
+    def test_planner_namespace_exports_existing_enums(self):
+        self.assertEqual(
+            Planner.EntryChainPolicy.__qualname__,
+            "Planner.EntryChainPolicy",
+        )
+        self.assertIs(
+            Planner.EntryChainPolicy.STOP_ON_SUCCESS,
+            EntryChainPolicy.STOP_ON_SUCCESS,
+        )
+        self.assertIs(Planner.NEVER_EXPIRES, NEVER_EXPIRES)
+
     def _char(self, index, name, **kwargs):
         return FakeChar(index, name, **kwargs)
 
@@ -718,7 +730,7 @@ class TestCombatPlanner(unittest.TestCase):
                     {ActionTag.ULTIMATE_ACTION},
                     ActionSlot.ULTIMATE,
                     calls,
-                    chain_policy=EntryChainPolicy.STOP_ON_SUCCESS,
+                    chain_policy=Planner.EntryChainPolicy.STOP_ON_SUCCESS,
                 ),
                 self._action(
                     "fadia_skill",
@@ -1369,7 +1381,7 @@ class TestCombatPlanner(unittest.TestCase):
                 ),
             )
 
-    def test_permanent_reservation_rejects_on_expired_callback(self):
+    def test_permanent_reservation_rejects_on_finish_callback(self):
         source = FakeChar(0, "source")
         nanally = FakeChar(1, "nanally")
         planner = self._planner([source, nanally])
@@ -1382,7 +1394,7 @@ class TestCombatPlanner(unittest.TestCase):
                     [ActionReservation.for_action(nanally, ActionSlot.SKILL)],
                     reason="bad permanent reservation",
                     until=NEVER_EXPIRES,
-                    on_expired=lambda: None,
+                    on_finish=lambda: None,
                 ),
             )
 
@@ -1405,22 +1417,283 @@ class TestCombatPlanner(unittest.TestCase):
 
         self.assertFalse(context.can_execute_action(nanally, slot=ActionSlot.SKILL))
 
-    def test_request_route_window_hold_survives_route_completion_until_window_expires(self):
+    def test_reset_closes_request_handles(self):
+        source = FakeChar(0, "source")
+        zero = FakeChar(1, "zero", tags={ActionTag.SKILL_ACTION})
+        nanally = FakeChar(2, "nanally")
+        handles = {}
+        planner = self._planner([source, zero, nanally])
+
+        def publish(context):
+            handles["route"] = context.request_route(
+                [FollowupStep.for_action(zero, ActionSlot.SKILL, reason="Zero E")],
+                reason="reset route",
+            )
+            handles["reservation"] = context.reserve_actions(
+                [ActionReservation.for_action(nanally, ActionSlot.SKILL)],
+                reason="reset reservation",
+                until=Planner.NEVER_EXPIRES,
+            )
+
+        self._publish(planner, source, publish)
+
+        self.assertFalse(handles["route"].is_closed)
+        self.assertFalse(handles["reservation"].is_closed)
+
+        planner.state.reset([source, zero, nanally])
+
+        self.assertTrue(handles["route"].is_closed)
+        self.assertTrue(handles["reservation"].is_closed)
+
+    def test_reservation_can_release_when_route_is_fulfilled(self):
+        hotori = FakeChar(0, "hotori", field_preference=FieldPreference.SETUP_ONLY)
+        zero = FakeChar(1, "zero", tags={ActionTag.SKILL_ACTION})
+        nanally = FakeChar(2, "nanally")
+        planner = self._planner([hotori, zero, nanally])
+
+        def publish(context):
+            route = context.request_route(
+                [FollowupStep.for_action(zero, ActionSlot.SKILL, reason="Zero E")],
+                reason="hotori record route",
+            )
+            context.reserve_actions(
+                [ActionReservation.for_action(nanally, ActionSlot.SKILL)],
+                reason="release after route fulfilled",
+                until=route.when.fulfilled,
+            )
+
+        self._publish(planner, hotori, publish)
+        context = planner.context_for(hotori)
+
+        self.assertFalse(context.can_execute_action(nanally, slot=ActionSlot.SKILL))
+
+        planner.perform_current_char(zero)
+
+        self.assertEqual(planner.state.locked_route, None)
+        self.assertTrue(context.can_execute_action(nanally, slot=ActionSlot.SKILL))
+
+    def test_reservation_can_release_when_route_is_expired(self):
         hotori = FakeChar(0, "hotori", field_preference=FieldPreference.SETUP_ONLY)
         zero = FakeChar(1, "zero", tags={ActionTag.SKILL_ACTION})
         nanally = FakeChar(2, "nanally")
         expired = {"value": False}
         planner = self._planner([hotori, zero, nanally])
+
+        def publish(context):
+            route = context.request_route(
+                [FollowupStep.for_action(zero, ActionSlot.SKILL, reason="Zero E")],
+                reason="hotori record route",
+                until=lambda: expired["value"],
+            )
+            context.reserve_actions(
+                [ActionReservation.for_action(nanally, ActionSlot.SKILL)],
+                reason="release after route expired",
+                until=route.when.expired,
+            )
+
+        self._publish(planner, hotori, publish)
+        context = planner.context_for(hotori)
+
+        self.assertFalse(context.can_execute_action(nanally, slot=ActionSlot.SKILL))
+
+        expired["value"] = True
+        planner.state.prune()
+
+        self.assertIsNone(planner.state.locked_route)
+        self.assertTrue(context.can_execute_action(nanally, slot=ActionSlot.SKILL))
+
+    def test_reservation_can_release_when_route_is_closed(self):
+        hotori = FakeChar(0, "hotori", field_preference=FieldPreference.SETUP_ONLY)
+        zero = FakeChar(1, "zero", tags={ActionTag.SKILL_ACTION})
+        nanally = FakeChar(2, "nanally")
+        planner = self._planner([hotori, zero, nanally])
+        handles = {}
+
+        def publish(context):
+            route = context.request_route(
+                [FollowupStep.for_action(zero, ActionSlot.SKILL, reason="Zero E")],
+                reason="hotori record route",
+                return_to_source=True,
+            )
+            handles["route"] = route
+            context.reserve_actions(
+                [ActionReservation.for_action(nanally, ActionSlot.SKILL)],
+                reason="release after route closes",
+                until=route.when.closed,
+            )
+
+        self._publish(planner, hotori, publish)
+        context = planner.context_for(hotori)
+
+        planner.perform_current_char(zero)
+
+        self.assertTrue(handles["route"].is_fulfilled)
+        self.assertFalse(handles["route"].is_closed)
+        self.assertFalse(context.can_execute_action(nanally, slot=ActionSlot.SKILL))
+
+        planner.perform_current_char(hotori)
+
+        self.assertTrue(handles["route"].is_closed)
+        self.assertTrue(context.can_execute_action(nanally, slot=ActionSlot.SKILL))
+
+    def test_route_expiration_can_happen_after_fulfillment(self):
+        hotori = FakeChar(0, "hotori", field_preference=FieldPreference.SETUP_ONLY)
+        zero = FakeChar(1, "zero", tags={ActionTag.SKILL_ACTION})
+        nanally = FakeChar(2, "nanally")
+        expired = {"value": False}
+        handles = {}
+        calls = []
+        planner = self._planner([hotori, zero, nanally])
+
+        def publish(context):
+            route = context.request_route(
+                [FollowupStep.for_action(zero, ActionSlot.SKILL, reason="Zero E")],
+                reason="hotori record route",
+                until=lambda: expired["value"],
+            )
+            handles["route"] = route
+            route.on_fulfilled(lambda: calls.append("fulfilled"))
+            route.on_expired(lambda: calls.append("expired"))
+            context.reserve_actions(
+                [ActionReservation.for_action(nanally, ActionSlot.SKILL)],
+                reason="release after route window expires",
+                until=route.when.expired,
+            )
+
+        self._publish(planner, hotori, publish)
+        context = planner.context_for(hotori)
+
+        planner.perform_current_char(zero)
+
+        self.assertTrue(handles["route"].is_fulfilled)
+        self.assertFalse(handles["route"].is_expired)
+        self.assertFalse(context.can_execute_action(nanally, slot=ActionSlot.SKILL))
+        self.assertEqual(calls, ["fulfilled"])
+
+        handles["route"].on_expired(lambda: calls.append("late_expired"))
+
+        expired["value"] = True
+        planner.state.prune()
+
+        self.assertTrue(handles["route"].is_fulfilled)
+        self.assertTrue(handles["route"].is_expired)
+        self.assertTrue(context.can_execute_action(nanally, slot=ActionSlot.SKILL))
+        self.assertEqual(calls, ["fulfilled", "expired", "late_expired"])
+
+    def test_route_handle_calls_fulfilled_callback(self):
+        hotori = FakeChar(0, "hotori", field_preference=FieldPreference.SETUP_ONLY)
+        zero = FakeChar(1, "zero", tags={ActionTag.SKILL_ACTION})
+        calls = []
+        planner = self._planner([hotori, zero])
+
+        def publish(context):
+            route = context.request_route(
+                [FollowupStep.for_action(zero, ActionSlot.SKILL, reason="Zero E")],
+                reason="hotori record route",
+            )
+            route.on_fulfilled(lambda: calls.append("fulfilled"))
+
+        self._publish(planner, hotori, publish)
+
+        planner.perform_current_char(zero)
+
+        self.assertEqual(calls, ["fulfilled"])
+
+    def test_route_handle_calls_expired_callback(self):
+        hotori = FakeChar(0, "hotori", field_preference=FieldPreference.SETUP_ONLY)
+        zero = FakeChar(1, "zero", tags={ActionTag.SKILL_ACTION})
+        expired = {"value": False}
+        calls = []
+        planner = self._planner([hotori, zero])
+
+        def publish(context):
+            route = context.request_route(
+                [FollowupStep.for_action(zero, ActionSlot.SKILL, reason="Zero E")],
+                reason="hotori record route",
+                until=lambda: expired["value"],
+            )
+            route.on_expired(lambda: calls.append("expired"))
+
+        self._publish(planner, hotori, publish)
+
+        expired["value"] = True
+        planner.state.prune()
+
+        self.assertEqual(calls, ["expired"])
+
+    def test_route_handle_callback_registered_after_finish_runs_immediately(self):
+        hotori = FakeChar(0, "hotori", field_preference=FieldPreference.SETUP_ONLY)
+        zero = FakeChar(1, "zero", tags={ActionTag.SKILL_ACTION})
+        calls = []
+        handles = {}
+        planner = self._planner([hotori, zero])
+
         self._publish(
             planner,
             hotori,
-            lambda context: context.request_route_window(
-                [FollowupStep.for_action(zero, ActionSlot.SKILL, reason="Zero E")],
-                [ActionReservation.for_action(nanally, ActionSlot.SKILL)],
-                reason="hotori record window",
-                until=lambda: expired["value"],
+            lambda context: handles.setdefault(
+                "route",
+                context.request_route(
+                    [FollowupStep.for_action(zero, ActionSlot.SKILL, reason="Zero E")],
+                    reason="hotori record route",
+                ),
             ),
         )
+        planner.perform_current_char(zero)
+
+        handles["route"].on_fulfilled(lambda: calls.append("fulfilled"))
+
+        self.assertEqual(calls, ["fulfilled"])
+
+    def test_new_strict_route_expires_replaced_route_handle(self):
+        source = FakeChar(0, "source")
+        zero = FakeChar(1, "zero", tags={ActionTag.SKILL_ACTION})
+        nanally = FakeChar(2, "nanally", tags={ActionTag.SKILL_ACTION})
+        calls = []
+        handles = {}
+        planner = self._planner([source, zero, nanally])
+
+        def publish(context):
+            handles["first"] = context.request_route(
+                [FollowupStep.for_action(zero, ActionSlot.SKILL, reason="Zero E")],
+                reason="first route",
+            )
+            handles["first"].on_expired(lambda: calls.append("expired"))
+            handles["second"] = context.request_route(
+                [FollowupStep.for_action(nanally, ActionSlot.SKILL, reason="Nanally E")],
+                reason="second route",
+            )
+
+        self._publish(
+            planner,
+            source,
+            publish,
+        )
+
+        self.assertTrue(handles["first"].is_expired)
+        self.assertTrue(handles["second"].is_pending)
+        self.assertEqual(calls, ["expired"])
+
+    def test_route_completion_does_not_release_window_lifetime_reservation(self):
+        hotori = FakeChar(0, "hotori", field_preference=FieldPreference.SETUP_ONLY)
+        zero = FakeChar(1, "zero", tags={ActionTag.SKILL_ACTION})
+        nanally = FakeChar(2, "nanally")
+        expired = {"value": False}
+        planner = self._planner([hotori, zero, nanally])
+
+        def publish(context):
+            context.request_route(
+                [FollowupStep.for_action(zero, ActionSlot.SKILL, reason="Zero E")],
+                reason="hotori record window",
+                until=lambda: expired["value"],
+            )
+            context.reserve_actions(
+                [ActionReservation.for_action(nanally, ActionSlot.SKILL)],
+                reason="hotori record window hold",
+                until=lambda: expired["value"],
+            )
+
+        self._publish(planner, hotori, publish)
         context = planner.context_for(hotori)
 
         planner.perform_current_char(zero)
@@ -1432,23 +1705,6 @@ class TestCombatPlanner(unittest.TestCase):
         planner.state.prune()
 
         self.assertTrue(context.can_execute_action(nanally, slot=ActionSlot.SKILL))
-
-    def test_request_route_window_requires_until(self):
-        hotori = FakeChar(0, "hotori", field_preference=FieldPreference.SETUP_ONLY)
-        zero = FakeChar(1, "zero", tags={ActionTag.SKILL_ACTION})
-        nanally = FakeChar(2, "nanally")
-        planner = self._planner([hotori, zero, nanally])
-
-        with self.assertRaises(TypeError):
-            self._publish(
-                planner,
-                hotori,
-                lambda context: context.request_route_window(
-                    [FollowupStep.for_action(zero, ActionSlot.SKILL, reason="Zero E")],
-                    [ActionReservation.for_action(nanally, ActionSlot.SKILL)],
-                    reason="hotori record window",
-                ),
-            )
 
     def test_request_route_can_request_entry_reaction(self):
         zero = FakeChar(0, "zero", cycle_full=True)

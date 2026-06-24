@@ -36,8 +36,11 @@ from .types import (
     FieldClaimLevel,
     FieldPreference,
     FollowupStep,
+    Planner,
+    RequestHandle,
     Role,
     RoleProfile,
+    RequestStatus,
     SwitchDecision,
     SwitchInGuard,
 )
@@ -68,6 +71,9 @@ __all__ = [
     "FieldClaimLevel",
     "FieldPreference",
     "FollowupStep",
+    "Planner",
+    "RequestHandle",
+    "RequestStatus",
     "Role",
     "RoleProfile",
     "SwitchDecision",
@@ -692,20 +698,23 @@ class CombatPlanner:
             target = request_switch_target(request, context.chars)
             if target is None:
                 if request_is_switch(request):
-                    request.notify_expired()
+                    request.finish(RequestStatus.EXPIRED)
+                    request.close()
                     logger.info(f"switch request target missing: {request.reason}")
                     continue
                 active_requests.append(request)
                 continue
             if not self._can_switch_to(target):
                 if request_is_switch(request):
-                    request.notify_expired()
+                    request.finish(RequestStatus.EXPIRED)
+                    request.close()
                     logger.info(f"switch request target dead: {request.reason}")
                     continue
                 active_requests.append(request)
                 continue
             if target == current_char:
-                request.notify_fulfilled()
+                request.finish(RequestStatus.FULFILLED)
+                request.close()
                 logger.info(f"switch request already current: {request.reason}")
                 continue
             if decision is None:
@@ -936,7 +945,8 @@ class CombatPlanner:
             logger.warning(
                 f"strict route target dead, route unlocked: {request.reason} / {step.reason}"
             )
-            request.notify_expired()
+            request.finish(RequestStatus.EXPIRED)
+            request.close()
             context._state.locked_route = None
             return None
 
