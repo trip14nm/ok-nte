@@ -610,5 +610,5 @@ class DailyTask(NTEOneTimeTask, CinemaDateMixin, BaseCombatTask):
                 ),
                 block=True,
             )
-
+            self.sleep(2)
             self.ensure_main()
