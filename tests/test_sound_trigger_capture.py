@@ -94,6 +94,59 @@ class SoundListenerTests(unittest.TestCase):
                 counter_attack_sample_path="",
             )
 
+    def test_listener_restarts_after_loop_error(self):
+        from src.sound_trigger.SoundListener import SoundListener
+
+        class RestartingListener(SoundListener):
+            restart_interval = 0.01
+
+            def _load_samples(self):
+                pass
+
+            def _listen_once(self, stop_event):
+                self.attempts += 1
+                if self.attempts == 1:
+                    raise RuntimeError("simulated listener failure")
+                self._running = False
+
+        listener = RestartingListener(sample_path="", counter_attack_sample_path="")
+        listener.attempts = 0
+
+        self.assertTrue(listener.start())
+        listener._listener_thread.join(timeout=1.0)
+
+        self.assertEqual(listener.attempts, 2)
+        self.assertFalse(listener.is_running)
+
+    def test_listener_start_is_idempotent(self):
+        import threading
+
+        from src.sound_trigger.SoundListener import SoundListener
+
+        class BlockingListener(SoundListener):
+            def _load_samples(self):
+                pass
+
+            def _listen_once(self, stop_event):
+                self.attempts += 1
+                self.started.set()
+                stop_event.wait(1.0)
+
+        listener = BlockingListener(sample_path="", counter_attack_sample_path="")
+        listener.attempts = 0
+        listener.started = threading.Event()
+
+        self.assertTrue(listener.start())
+        first_thread = listener._listener_thread
+        self.assertTrue(listener.start())
+        self.assertTrue(listener.started.wait(1.0))
+        self.assertIs(listener._listener_thread, first_thread)
+
+        listener.stop()
+
+        self.assertEqual(listener.attempts, 1)
+        self.assertFalse(listener.is_running)
+
 
 if __name__ == "__main__":
     unittest.main()
