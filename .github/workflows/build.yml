@@ -13,7 +13,7 @@ jobs:
 
     env:
       PYTHONIOENCODING: 'UTF-8'
-      SIGN_BUILD: 'false'
+      SIGN_BUILD: 'true'
       SIGN_SETUP: 'false'
       BUILD_EXE: 'true'
       USE_RELEASE: ''
