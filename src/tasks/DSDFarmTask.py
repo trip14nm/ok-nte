@@ -6,6 +6,20 @@ from src.Labels import Labels
 from src.tasks.BaseNTETask import Box
 from src.tasks.NTEOneTimeTask import NTEOneTimeTask
 
+SPACE = "&nbsp;" * 4
+
+INST = (
+    "手动传送一次目标篝火后不要转动视角，直接开始任务。\n\n"
+    "巧克力火山-底层最左边的篝火\n"
+    f"{SPACE}https://b23.tv/qsEVcDO"
+)
+
+EN_INST = (
+    "After manually teleporting to the target campfire once, do not rotate the camera;"
+    " begin the quest immediately.\n\n"
+    "Chocolate Volcano - Bottom Floor Leftmost Bonfire\n"
+    f"{SPACE}https://b23.tv/qsEVcDO"
+)
 
 class DSDFarmTask(NTEOneTimeTask, BaseCombatTask):
     CONF_LOCATION = "位置"
@@ -15,6 +29,8 @@ class DSDFarmTask(NTEOneTimeTask, BaseCombatTask):
         self.name = "九百九十九夜"
         self.description = "挂机刷经验"
         self.icon = FluentIcon.FLAG
+        _locale = self.get_app_locale()
+        self.instructions = INST if _locale and "zh" in _locale else EN_INST
         self.locations = ["巧克力火山-底层最左边的篝火"]
         self.default_config.update(
             {
