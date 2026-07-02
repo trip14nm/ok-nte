@@ -227,6 +227,24 @@ class TestCustomChar(TaskTestCase):
         # 槽位 2: 未收到掃描結果，應被清空並寫著無畫面
         self.assertEqual(tab.slots[2].status.text(), tab.tr_no_feature)
 
+    def test_team_manager_tab_disables_add_feature_after_first_link(self):
+        tab = TeamManagerTab(manager=self.manager)
+        fake_mat = np.zeros((10, 10, 3), dtype=np.uint8)
+        slot = tab.slots[0]
+        slot.update_result(fake_mat, 1920, 1080, None)
+
+        dialog = MagicMock()
+        dialog.exec.return_value = True
+        dialog.get_data.return_value = ("linked_char", "")
+
+        with patch("src.ui.TeamManagerTab.NewCharDialog", return_value=dialog):
+            slot.on_action()
+
+        self.assertEqual(slot.current_match_name, "linked_char")
+        self.assertEqual(slot.current_confidence, 1.0)
+        self.assertIn(slot.tr_confidence.format(1.0), slot.status.text())
+        self.assertFalse(slot.btn_act.isEnabled())
+
     def test_builtin_combo_roundtrip(self):
         builtin_ref = PREDEFINED_CHARACTER_REF
         builtin_label = self.manager.to_combo_label(builtin_ref)
