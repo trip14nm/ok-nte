@@ -15,7 +15,7 @@ INST = (
     f"{SPACE}底层整个地图最靠左的篝火\n"
     f"{SPACE}https://b23.tv/qsEVcDO\n\n"
     "赤龙古堡-龙之高塔室外篝火\n"
-    f"{SPACE}龙之高塔室只有两个篝火，室外旁边有棵树的篝火"
+    f"{SPACE}龙之高塔只有两个篝火，室外旁边有棵树的篝火"
 )
 
 EN_INST = (
@@ -24,7 +24,7 @@ EN_INST = (
     f"{SPACE}The campfire on the far left of the entire bottom map\n"
     f"{SPACE}https://b23.tv/qsEVcDO\n\n"
     "Red Dragon Castle - Dragon Tower Outdoor Campfire\n"
-    f"{SPACE}There are only two campfires inside the Dragon Tower, and a campfire outside next to a tree."
+    f"{SPACE}The Dragon Tower only has two campfires, one of which is outdoors next to a tree."
 )
 # ruff: noqa
 
