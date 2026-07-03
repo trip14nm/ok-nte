@@ -12,7 +12,7 @@ SPACE = "&nbsp;" * 4
 INST = (
     "手动传送一次目标篝火后不要转动视角，直接开始任务。\n\n"
     "巧克力火山-底层最左边的篝火\n"
-    f"{SPACE}底层整个地图最靠左的篝火\n"
+    f"{SPACE}火山有两层!!! 目标是*底层*整个地图最靠左的篝火\n"
     f"{SPACE}https://b23.tv/qsEVcDO\n\n"
     "赤龙古堡-龙之高塔室外篝火\n"
     f"{SPACE}龙之高塔只有两个篝火，室外旁边有棵树的篝火"
@@ -21,7 +21,7 @@ INST = (
 EN_INST = (
     "After manually teleporting to the target campfire once, do not rotate the camera; begin the quest immediately.\n\n"
     "Chocolate Volcano - Bottom Floor Leftmost Bonfire\n"
-    f"{SPACE}The campfire on the far left of the entire bottom map\n"
+    f"{SPACE}The volcano has two levels!!! The target is the campfire on the far left of the *bottom level*.\n"
     f"{SPACE}https://b23.tv/qsEVcDO\n\n"
     "Red Dragon Castle - Dragon Tower Outdoor Campfire\n"
     f"{SPACE}The Dragon Tower only has two campfires, one of which is outdoors next to a tree."
@@ -64,6 +64,8 @@ class DSDFarmTask(NTEOneTimeTask, BaseCombatTask):
                 },
             }
         )
+        self.combat_detect_policy.miss_required = 3
+        self.combat_detect_policy.uncertain_seconds = 2
 
     def run(self):
         super().run()
