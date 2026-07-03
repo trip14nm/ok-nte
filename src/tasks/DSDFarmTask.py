@@ -31,7 +31,6 @@ EN_INST = (
 
 class DSDFarmTask(NTEOneTimeTask, BaseCombatTask):
     CONF_LOCATION = "位置"
-    CONF_ROUNDS = "循环次数"
     CONF_USE_ULT = "使用终结技"
 
     def __init__(self, *args, **kwargs):
@@ -42,17 +41,11 @@ class DSDFarmTask(NTEOneTimeTask, BaseCombatTask):
         _locale = self.get_app_locale()
         self.instructions = INST if _locale and "zh" in _locale else EN_INST
         self.locations = ["巧克力火山-底层最左边的篝火", "赤龙古堡-龙之高塔室外篝火"]
+        self.add_rounds_config()
         self.default_config.update(
             {
                 self.CONF_LOCATION: self.locations[0],
-                self.CONF_ROUNDS: 0,
                 self.CONF_USE_ULT: True
-            }
-        )
-
-        self.config_description.update(
-            {
-                self.CONF_ROUNDS: "循环次数, 设置为0则一直运行",
             }
         )
 
@@ -82,17 +75,10 @@ class DSDFarmTask(NTEOneTimeTask, BaseCombatTask):
     def do_run(self):
         self.use_ultimate = self.config.get(self.CONF_USE_ULT, True)
         self.deside_map_zoom()
-        n = 0
-        while True:
-            n += 1
-            rounds = self.config.get(self.CONF_ROUNDS, 0)
-            if rounds == 0:
-                rounds_text = f"{n} / ∞"
-            elif n > rounds:
-                return
-            else:
-                rounds_text = f"{n} / {rounds}"
-            self.info_set("轮次", rounds_text)
+        rounds = self.configured_rounds(default=0)
+        round_index = 1
+        while self.should_run_round(round_index, rounds):
+            self.info_set("轮次", self.rounds_info_text(round_index, rounds))
             self.wait_until(
                 self.find_interac,
                 time_out=10,
@@ -110,6 +96,7 @@ class DSDFarmTask(NTEOneTimeTask, BaseCombatTask):
             self.ensure_main()
             self.deside_action()
             self.next_frame()
+            round_index += 1
 
     def sleep_check(self):
         super().sleep_check()
