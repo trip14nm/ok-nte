@@ -6,25 +6,29 @@ from src.Labels import Labels
 from src.tasks.BaseNTETask import Box
 from src.tasks.NTEOneTimeTask import NTEOneTimeTask
 
-SPACE = "&nbsp;" * 4
+SPACE = "&nbsp;" * 4 + "-"
 
 # ruff: noqa: E501
 INST = (
     "手动传送一次目标篝火后不要转动视角，直接开始任务。\n\n"
     "巧克力火山-底层最左边的篝火\n"
     f"{SPACE}火山有两层!!! 目标是*底层*整个地图最靠左的篝火\n"
+    f"{SPACE}这个篝火只有二周目以后才能到达, 推荐在这里刷到100级\n"
     f"{SPACE}跟跑视频: https://b23.tv/qsEVcDO\n\n"
     "赤龙古堡-龙之高塔室外篝火\n"
-    f"{SPACE}龙之高塔只有两个篝火，室外旁边有棵树的篝火"
+    f"{SPACE}龙之高塔只有两个篝火，室外旁边有棵树的篝火\n"
+    f"{SPACE}推荐三周目才来这里, 主要目的是刷纽扣"
 )
 
 EN_INST = (
     "After manually teleporting to the target campfire once, do not rotate the camera; begin the quest immediately.\n\n"
     "Chocolate Volcano - Bottom Floor Leftmost Bonfire\n"
     f"{SPACE}The volcano has two levels!!! The target is the campfire on the far left of the *bottom level*.\n"
+    f"{SPACE}This campfire is only accessible after the second playthrough; it's recommended to grind here until level 100.\n"
     f"{SPACE}Follow-up video: https://b23.tv/qsEVcDO\n\n"
     "Red Dragon Castle - Dragon Tower Outdoor Campfire\n"
-    f"{SPACE}The Dragon Tower only has two campfires, one of which is outdoors next to a tree."
+    f"{SPACE}The Dragon Tower only has two campfires, one of which is outdoors next to a tree.\n"
+    f"{SPACE} recommends only coming here on your third playthrough; the main purpose is to farm buttons."
 )
 # ruff: noqa
 
