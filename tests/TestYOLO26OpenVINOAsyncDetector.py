@@ -23,8 +23,10 @@ class FakeRequest:
 
 
 class FakeQueue:
-    def __init__(self, ready=True):
+    def __init__(self, ready=True, complete_immediately=False, detections=None):
         self.ready = ready
+        self.complete_immediately = complete_immediately
+        self.detections = detections or []
         self.callback = None
         self.requests = [FakeRequest()]
         self.started = []
@@ -42,6 +44,9 @@ class FakeQueue:
     def start_async(self, inputs, user_data):
         self.started.append((inputs, user_data))
         self.ready = False
+        if self.complete_immediately and self.callback is not None:
+            self.callback(FakeInferRequest(self.detections), user_data)
+            self.ready = True
 
     def wait_all(self):
         self.waited = True
@@ -86,14 +91,25 @@ class TestYOLO26OpenVINOAsyncDetector(unittest.TestCase):
         detector._create_infer_queue = create_queue
         return detector
 
-    def test_detect_sync_returns_none_when_busy_and_no_new_job_was_submitted(self):
-        detector = self._detector([FakeQueue(ready=False)])
+    def test_detect_sync_rotates_busy_queue_and_waits_for_latest_frame(self):
+        old_queue = FakeQueue(ready=False)
+        new_queue = FakeQueue(
+            ready=True,
+            complete_immediately=True,
+            detections=[[0, 0, 1536, 896, 0.99, 0]],
+        )
+        detector = self._detector([old_queue, new_queue])
         image = np.zeros((20, 20, 3), dtype=np.uint8)
 
         result = detector.detect_sync(image)
 
-        self.assertIsNone(result)
-        self.assertEqual(detector.latest_results, ["old"])
+        self.assertTrue(old_queue.requests[0].cancelled)
+        self.assertIs(detector.infer_queue, new_queue)
+        self.assertEqual(len(new_queue.started), 1)
+        self.assertEqual(len(result), 1)
+        self.assertIsInstance(result[0], Box)
+        self.assertEqual(result[0].name, "target")
+        self.assertIs(detector.latest_image, image)
 
     def test_force_rotates_busy_queue_and_submits_latest_frame(self):
         old_queue = FakeQueue(ready=False)
