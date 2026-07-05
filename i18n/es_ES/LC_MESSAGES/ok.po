@@ -97,8 +97,8 @@ msgstr "Guardado con éxito"
 msgid "停用"
 msgstr "Desactivar"
 
-msgid "先扫描或手动填写"
-msgstr "Escanear primero o completar manualmente"
+msgid "先扫描并关联特征或手动填写"
+msgstr "Escanear y vincular características primero, o completar manualmente"
 
 msgid "出招表"
 msgstr "Lista de combos"
@@ -151,8 +151,8 @@ msgstr "Clic automático de teletransporte en el mapa"
 msgid "填入扫描"
 msgstr "Completar escaneo"
 
-msgid "关联 <b style=\"color: #0078d7;\">角色特征</b> 后将自动判断当前角色。<br>如果不想管理 <b style=\"color: #0078d7;\">角色特征</b>，可以直接启用 <b style=\"color: #0078d7;\">{fixed_team}</b> 功能。"
-msgstr "Al vincular <b style=\"color: #0078d7;\">Características del personaje</b>, se identificará automáticamente al personaje actual.<br>Si no desea gestionar las <b style=\"color: #0078d7;\">Características del personaje</b>, puede activar directamente la función <b style=\"color: #0078d7;\">{fixed_team}</b>."
+msgid "这是个用于向数据库关联或添加 <b style=\"color: #0078d7;\">角色特征</b> 的工具面板。<br>点击 <b style=\"color: #0078d7;\">{scan_team}</b> 后点击 <b style=\"color: #0078d7;\">关联或添加</b> 特征，自动战斗时就会识别对应的角色。<br><b style=\"color: #d83b01;\">💡 注意：</b>此面板 <b style=\"color: #d83b01;\">不会</b> 在进入战斗或更换阵容时实时自动刷新或同步显示, 因为这是工具面板。<br>如果不想管理 <b style=\"color: #0078d7;\">角色特征</b>，可以直接使用 <b style=\"color: #0078d7;\">{fixed_team}</b> 功能。"
+msgstr "Este es un panel de herramientas para vincular o añadir <b style=\"color: #0078d7;\">Características del personaje</b> a la base de datos.<br>Haga clic en <b style=\"color: #0078d7;\">{scan_team}</b> y luego en <b style=\"color: #0078d7;\">Vincular o Añadir</b> característica, y el personaje correspondiente se identificará durante el combate automático.<br><b style=\"color: #d83b01;\">💡 Nota:</b> Este panel <b style=\"color: #d83b01;\">no se actualizará</b> ni sincronizará automáticamente en tiempo real al entrar en combate o cambiar la composition del equipo, ya que es un panel de herramientas.<br>Si no desea gestionar las <b style=\"color: #0078d7;\">Características del personaje</b>, puede usar directamente la función <b style=\"color: #0078d7;\">{fixed_team}</b>."
 
 msgid "完成每日活跃度"
 msgstr "Completar actividad diaria"
