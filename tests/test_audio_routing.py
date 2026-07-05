@@ -54,11 +54,11 @@ class AudioRoutingTests(unittest.TestCase):
             "{0.0.0.00000000}.{render},Active,Render,\n"
         )
 
-        self.assertEqual(data[0]["Type"], "Application")
-        self.assertEqual(data[0]["Name"], "异环")
-        self.assertEqual(data[0]["Process ID"], "80940")
-        self.assertEqual(data[1]["Type"], "Device")
-        self.assertEqual(data[1]["Name"], "VoiceMeeter Input")
+        self.assertEqual(data[0]["type"], "Application")
+        self.assertEqual(data[0]["name"], "异环")
+        self.assertEqual(data[0]["processid"], "80940")
+        self.assertEqual(data[1]["type"], "Device")
+        self.assertEqual(data[1]["name"], "VoiceMeeter Input")
 
     def test_export_sound_items_reads_svcl_stdout_csv_without_temp_file(self):
         stdout = (
@@ -74,7 +74,7 @@ class AudioRoutingTests(unittest.TestCase):
             ) as run:
                 data = audio_routing._export_sound_items("svcl.exe")
 
-        self.assertEqual(data[0]["Name"], "异环")
+        self.assertEqual(data[0]["name"], "异环")
         self.assertEqual(
             run.call_args.args[0],
             [
@@ -89,32 +89,32 @@ class AudioRoutingTests(unittest.TestCase):
     def test_current_process_render_output_device_matches_active_target_pid(self):
         data = [
             {
-                "Command-Line Friendly ID": "NVIDIA Broadcast\\Device\\Speakers\\Render",
-                "Item ID": "{0.0.0.00000000}.{broadcast}",
-                "Type": "Device",
-                "Direction": "Render",
+                "commandlinefriendlyid": "NVIDIA Broadcast\\Device\\Speakers\\Render",
+                "itemid": "{0.0.0.00000000}.{broadcast}",
+                "type": "Device",
+                "direction": "Render",
             },
             {
-                "Command-Line Friendly ID": "Realtek USB Audio\\Device\\喇叭\\Render",
-                "Item ID": "{0.0.0.00000000}.{realtek}",
-                "Type": "Device",
-                "Direction": "Render",
+                "commandlinefriendlyid": "Realtek USB Audio\\Device\\喇叭\\Render",
+                "itemid": "{0.0.0.00000000}.{realtek}",
+                "type": "Device",
+                "direction": "Render",
             },
             {
-                "Command-Line Friendly ID": "NVIDIA Broadcast\\Application\\异环",
-                "Item ID": "{0.0.0.00000000}.{broadcast}|app",
-                "Type": "Application",
-                "Direction": "Render",
-                "Device State": "Active",
-                "Process ID": "80940",
+                "commandlinefriendlyid": "NVIDIA Broadcast\\Application\\异环",
+                "itemid": "{0.0.0.00000000}.{broadcast}|app",
+                "type": "Application",
+                "direction": "Render",
+                "devicestate": "Active",
+                "processid": "80940",
             },
             {
-                "Command-Line Friendly ID": "Realtek USB Audio\\Application\\异环",
-                "Item ID": "{0.0.0.00000000}.{realtek}|app",
-                "Type": "Application",
-                "Direction": "Render",
-                "Device State": "Active",
-                "Process ID": "12345",
+                "commandlinefriendlyid": "Realtek USB Audio\\Application\\异环",
+                "itemid": "{0.0.0.00000000}.{realtek}|app",
+                "type": "Application",
+                "direction": "Render",
+                "devicestate": "Active",
+                "processid": "12345",
             },
         ]
         device = _current_process_render_output_device(data, GAME_EXE)
@@ -146,42 +146,40 @@ class AudioRoutingTests(unittest.TestCase):
     def test_router_captures_original_app_output_device_before_background_route(self):
         router = _BackgroundAudioRouter()
         router._pending_route = _RouteRequest("Speakers", save_current=True)
-        data = {
-            "Sound Items": [
-                {
-                    "Name": "Speakers",
-                    "Command-Line Friendly ID": "Speaker Audio\\Device\\Speakers\\Render",
-                    "Type": "Device",
-                    "Direction": "Render",
-                    "Device": "Speaker Audio",
-                },
-                {
-                    "Name": "Headphones",
-                    "Command-Line Friendly ID": "Headphone Audio\\Device\\Headphones\\Render",
-                    "Type": "Device",
-                    "Direction": "Render",
-                    "Device": "Headphone Audio",
-                },
-                {
-                    "Name": GAME_EXE,
-                    "Command-Line Friendly ID": "Headphone Audio\\Application\\HTGame.exe",
-                    "Item ID": "\\Device\\HarddiskVolume2\\Game\\HTGame.exe%b1",
-                    "Type": "Application",
-                    "Direction": "Render",
-                    "Device State": "Active",
-                    "Process ID": "80940",
-                },
-                {
-                    "Name": GAME_EXE,
-                    "Command-Line Friendly ID": "Speaker Audio\\Application\\HTGame.exe",
-                    "Item ID": "\\Device\\HarddiskVolume2\\Game\\HTGame.exe%b1",
-                    "Type": "Application",
-                    "Direction": "Render",
-                    "Device State": "Inactive",
-                    "Process ID": "80940",
-                },
-            ]
-        }
+        data = [
+            {
+                "name": "Speakers",
+                "commandlinefriendlyid": "Speaker Audio\\Device\\Speakers\\Render",
+                "type": "Device",
+                "direction": "Render",
+                "Device": "Speaker Audio",
+            },
+            {
+                "name": "Headphones",
+                "commandlinefriendlyid": "Headphone Audio\\Device\\Headphones\\Render",
+                "type": "Device",
+                "direction": "Render",
+                "Device": "Headphone Audio",
+            },
+            {
+                "name": GAME_EXE,
+                "commandlinefriendlyid": "Headphone Audio\\Application\\HTGame.exe",
+                "itemid": "\\Device\\HarddiskVolume2\\Game\\HTGame.exe%b1",
+                "type": "Application",
+                "direction": "Render",
+                "devicestate": "Active",
+                "processid": "80940",
+            },
+            {
+                "name": GAME_EXE,
+                "commandlinefriendlyid": "Speaker Audio\\Application\\HTGame.exe",
+                "itemid": "\\Device\\HarddiskVolume2\\Game\\HTGame.exe%b1",
+                "type": "Application",
+                "direction": "Render",
+                "devicestate": "Inactive",
+                "processid": "80940",
+            },
+        ]
 
         with patch.object(audio_routing, "_export_sound_items", return_value=data):
             with patch.object(
@@ -197,26 +195,24 @@ class AudioRoutingTests(unittest.TestCase):
     def test_router_saves_default_when_current_device_is_background_target(self):
         router = _BackgroundAudioRouter()
         router._pending_route = _RouteRequest("Speakers", save_current=True)
-        data = {
-            "Sound Items": [
-                {
-                    "Name": "Speakers",
-                    "Command-Line Friendly ID": "Speaker Audio\\Device\\Speakers\\Render",
-                    "Type": "Device",
-                    "Direction": "Render",
-                    "Device": "Speaker Audio",
-                },
-                {
-                    "Name": GAME_EXE,
-                    "Command-Line Friendly ID": "Speaker Audio\\Application\\HTGame.exe",
-                    "Item ID": "\\Device\\HarddiskVolume2\\Game\\HTGame.exe%b1",
-                    "Type": "Application",
-                    "Direction": "Render",
-                    "Device State": "Active",
-                    "Process ID": "80940",
-                },
-            ]
-        }
+        data = [
+            {
+                "name": "Speakers",
+                "commandlinefriendlyid": "Speaker Audio\\Device\\Speakers\\Render",
+                "type": "Device",
+                "direction": "Render",
+                "Device": "Speaker Audio",
+            },
+            {
+                "name": GAME_EXE,
+                "commandlinefriendlyid": "Speaker Audio\\Application\\HTGame.exe",
+                "itemid": "\\Device\\HarddiskVolume2\\Game\\HTGame.exe%b1",
+                "type": "Application",
+                "direction": "Render",
+                "devicestate": "Active",
+                "processid": "80940",
+            },
+        ]
 
         with patch.object(audio_routing, "_export_sound_items", return_value=data):
             with patch.object(
@@ -235,28 +231,26 @@ class AudioRoutingTests(unittest.TestCase):
             "VB-Audio VoiceMeeter VAIO\\Device\\VoiceMeeter Input\\Render",
             save_current=True,
         )
-        data = {
-            "Sound Items": [
-                {
-                    "Name": "VoiceMeeter Input",
-                    "Command-Line Friendly ID": (
-                        "VB-Audio VoiceMeeter VAIO\\Device\\VoiceMeeter Input\\Render"
-                    ),
-                    "Type": "Device",
-                    "Direction": "Render",
-                    "Device": "VB-Audio VoiceMeeter VAIO",
-                },
-                {
-                    "Name": "异环",
-                    "Command-Line Friendly ID": "VB-Audio VoiceMeeter VAIO\\Application\\异环",
-                    "Item ID": "\\Device\\HarddiskVolume2\\Game\\HTGame.exe%b1",
-                    "Type": "Application",
-                    "Direction": "Render",
-                    "Device State": "Active",
-                    "Process ID": "80940",
-                },
-            ]
-        }
+        data = [
+            {
+                "name": "VoiceMeeter Input",
+                "commandlinefriendlyid": (
+                    "VB-Audio VoiceMeeter VAIO\\Device\\VoiceMeeter Input\\Render"
+                ),
+                "type": "Device",
+                "direction": "Render",
+                "Device": "VB-Audio VoiceMeeter VAIO",
+            },
+            {
+                "name": "异环",
+                "commandlinefriendlyid": "VB-Audio VoiceMeeter VAIO\\Application\\异环",
+                "itemid": "\\Device\\HarddiskVolume2\\Game\\HTGame.exe%b1",
+                "type": "Application",
+                "direction": "Render",
+                "devicestate": "Active",
+                "processid": "80940",
+            },
+        ]
 
         with patch.object(audio_routing, "_export_sound_items", return_value=data):
             with patch.object(
@@ -269,41 +263,83 @@ class AudioRoutingTests(unittest.TestCase):
         self.assertEqual(router._original_device, DEFAULT_RENDER_DEVICE)
         self.assertTrue(router._restore_needed)
 
+    def test_router_matches_sounddevice_names_with_trademark_markers(self):
+        router = _BackgroundAudioRouter()
+        router._pending_route = _RouteRequest(
+            "Speakers (Realtek(R) Audio)",
+            save_current=True,
+        )
+        data = [
+            {
+                "name": "Speakers",
+                "commandlinefriendlyid": "Realtek Audio\\Device\\Speakers\\Render",
+                "type": "Device",
+                "direction": "Render",
+                "Device": "Realtek Audio",
+            },
+            {
+                "name": "异环",
+                "commandlinefriendlyid": "Realtek Audio\\Application\\异环",
+                "itemid": "\\Device\\HarddiskVolume2\\Game\\HTGame.exe%b1",
+                "type": "Application",
+                "direction": "Render",
+                "devicestate": "Active",
+                "processid": "80940",
+            },
+        ]
+
+        with patch.object(audio_routing, "_export_sound_items", return_value=data):
+            with patch.object(
+                audio_routing.subprocess,
+                "run",
+                return_value=SimpleNamespace(returncode=0),
+            ) as run:
+                router._run_pending_routes("svcl.exe")
+
+        self.assertEqual(
+            run.call_args.args[0],
+            [
+                "svcl.exe",
+                "/SetAppDefault",
+                "Realtek Audio\\Device\\Speakers\\Render",
+                "0",
+                GAME_EXE,
+            ],
+        )
+
     def test_router_matches_target_from_global_render_devices_not_process_devices(self):
         router = _BackgroundAudioRouter()
         router._pending_route = _RouteRequest(
             "VoiceMeeter Input (VB-Audio VoiceMeeter VAIO)",
             save_current=True,
         )
-        data = {
-            "Sound Items": [
-                {
-                    "Name": "VoiceMeeter Input",
-                    "Command-Line Friendly ID": (
-                        "VB-Audio VoiceMeeter VAIO\\Device\\VoiceMeeter Input\\Render"
-                    ),
-                    "Type": "Device",
-                    "Direction": "Render",
-                    "Device Name": "VB-Audio VoiceMeeter VAIO",
-                },
-                {
-                    "Name": "喇叭",
-                    "Command-Line Friendly ID": "Realtek USB Audio\\Device\\喇叭\\Render",
-                    "Type": "Device",
-                    "Direction": "Render",
-                    "Device Name": "Realtek USB Audio",
-                },
-                {
-                    "Name": "异环",
-                    "Command-Line Friendly ID": "Realtek USB Audio\\Application\\异环",
-                    "Item ID": "\\Device\\HarddiskVolume2\\Game\\HTGame.exe%b1",
-                    "Type": "Application",
-                    "Direction": "Render",
-                    "Device State": "Active",
-                    "Process ID": "80940",
-                },
-            ]
-        }
+        data = [
+            {
+                "name": "VoiceMeeter Input",
+                "commandlinefriendlyid": (
+                    "VB-Audio VoiceMeeter VAIO\\Device\\VoiceMeeter Input\\Render"
+                ),
+                "type": "Device",
+                "direction": "Render",
+                "Device Name": "VB-Audio VoiceMeeter VAIO",
+            },
+            {
+                "name": "喇叭",
+                "commandlinefriendlyid": "Realtek USB Audio\\Device\\喇叭\\Render",
+                "type": "Device",
+                "direction": "Render",
+                "Device Name": "Realtek USB Audio",
+            },
+            {
+                "name": "异环",
+                "commandlinefriendlyid": "Realtek USB Audio\\Application\\异环",
+                "itemid": "\\Device\\HarddiskVolume2\\Game\\HTGame.exe%b1",
+                "type": "Application",
+                "direction": "Render",
+                "devicestate": "Active",
+                "processid": "80940",
+            },
+        ]
 
         with patch.object(audio_routing, "_export_sound_items", return_value=data):
             with patch.object(
@@ -332,50 +368,48 @@ class AudioRoutingTests(unittest.TestCase):
             "VoiceMeeter Input (VB-Audio VoiceMeeter VAIO)",
             save_current=True,
         )
-        data = {
-            "Sound Items": [
-                {
-                    "Name": "VoiceMeeter Input",
-                    "Command-Line Friendly ID": (
-                        "VB-Audio VoiceMeeter VAIO\\Device\\VoiceMeeter Input\\Render"
-                    ),
-                    "Item ID": "{0.0.0.00000000}.{be88ae54}",
-                    "Type": "Device",
-                    "Direction": "Render",
-                    "Device Name": "VB-Audio VoiceMeeter VAIO",
-                },
-                {
-                    "Name": "Realtek Digital Output",
-                    "Command-Line Friendly ID": (
-                        "Realtek USB Audio\\Device\\Realtek Digital Output\\Render"
-                    ),
-                    "Item ID": "{0.0.0.00000000}.{digital}",
-                    "Type": "Device",
-                    "Direction": "Render",
-                    "Device Name": "Realtek USB Audio",
-                },
-                {
-                    "Name": "喇叭",
-                    "Command-Line Friendly ID": "Realtek USB Audio\\Device\\喇叭\\Render",
-                    "Item ID": "{0.0.0.00000000}.{speaker}",
-                    "Type": "Device",
-                    "Direction": "Render",
-                    "Device Name": "Realtek USB Audio",
-                },
-                {
-                    "Name": "异环",
-                    "Command-Line Friendly ID": "Realtek USB Audio\\Application\\异环",
-                    "Item ID": (
-                        "{0.0.0.00000000}.{speaker}|"
-                        "\\Device\\HarddiskVolume2\\Game\\HTGame.exe%b1"
-                    ),
-                    "Type": "Application",
-                    "Direction": "Render",
-                    "Device State": "Active",
-                    "Process ID": "80940",
-                },
-            ]
-        }
+        data = [
+            {
+                "name": "VoiceMeeter Input",
+                "commandlinefriendlyid": (
+                    "VB-Audio VoiceMeeter VAIO\\Device\\VoiceMeeter Input\\Render"
+                ),
+                "itemid": "{0.0.0.00000000}.{be88ae54}",
+                "type": "Device",
+                "direction": "Render",
+                "Device Name": "VB-Audio VoiceMeeter VAIO",
+            },
+            {
+                "name": "Realtek Digital Output",
+                "commandlinefriendlyid": (
+                    "Realtek USB Audio\\Device\\Realtek Digital Output\\Render"
+                ),
+                "itemid": "{0.0.0.00000000}.{digital}",
+                "type": "Device",
+                "direction": "Render",
+                "Device Name": "Realtek USB Audio",
+            },
+            {
+                "name": "喇叭",
+                "commandlinefriendlyid": "Realtek USB Audio\\Device\\喇叭\\Render",
+                "itemid": "{0.0.0.00000000}.{speaker}",
+                "type": "Device",
+                "direction": "Render",
+                "Device Name": "Realtek USB Audio",
+            },
+            {
+                "name": "异环",
+                "commandlinefriendlyid": "Realtek USB Audio\\Application\\异环",
+                "itemid": (
+                    "{0.0.0.00000000}.{speaker}|"
+                    "\\Device\\HarddiskVolume2\\Game\\HTGame.exe%b1"
+                ),
+                "type": "Application",
+                "direction": "Render",
+                "devicestate": "Active",
+                "processid": "80940",
+            },
+        ]
 
         with patch.object(audio_routing, "_export_sound_items", return_value=data):
             with patch.object(
@@ -407,19 +441,17 @@ class AudioRoutingTests(unittest.TestCase):
     def test_router_skips_background_route_when_capture_returns_default_placeholder(self):
         router = _BackgroundAudioRouter()
         router._pending_route = _RouteRequest("USB Audio\\Device\\Speakers\\Render", save_current=True)
-        data = {
-            "Sound Items": [
-                {
-                    "Name": GAME_EXE,
-                    "Command-Line Friendly ID": "USB Audio\\Application\\HTGame.exe",
-                    "Item ID": "\\Device\\HarddiskVolume2\\Game\\HTGame.exe%b1",
-                    "Type": "Application",
-                    "Direction": "Render",
-                    "Device State": "Inactive",
-                    "Process ID": "80940",
-                },
-            ]
-        }
+        data = [
+            {
+                "name": GAME_EXE,
+                "commandlinefriendlyid": "USB Audio\\Application\\HTGame.exe",
+                "itemid": "\\Device\\HarddiskVolume2\\Game\\HTGame.exe%b1",
+                "type": "Application",
+                "direction": "Render",
+                "devicestate": "Inactive",
+                "processid": "80940",
+            },
+        ]
 
         with patch.object(audio_routing, "_export_sound_items", return_value=data):
             with patch.object(audio_routing.subprocess, "run") as run:
@@ -433,26 +465,24 @@ class AudioRoutingTests(unittest.TestCase):
         router = _BackgroundAudioRouter()
         router._pending_route = _RouteRequest("Speakers", save_current=True)
         router._original_device = DEFAULT_RENDER_DEVICE
-        data = {
-            "Sound Items": [
-                {
-                    "Name": "Speakers",
-                    "Command-Line Friendly ID": "Speaker Audio\\Device\\Speakers\\Render",
-                    "Type": "Device",
-                    "Direction": "Render",
-                    "Device": "Speaker Audio",
-                },
-                {
-                    "Name": GAME_EXE,
-                    "Command-Line Friendly ID": "Speaker Audio\\Application\\HTGame.exe",
-                    "Item ID": "\\Device\\HarddiskVolume2\\Game\\HTGame.exe%b1",
-                    "Type": "Application",
-                    "Direction": "Render",
-                    "Device State": "Active",
-                    "Process ID": "80940",
-                },
-            ]
-        }
+        data = [
+            {
+                "name": "Speakers",
+                "commandlinefriendlyid": "Speaker Audio\\Device\\Speakers\\Render",
+                "type": "Device",
+                "direction": "Render",
+                "Device": "Speaker Audio",
+            },
+            {
+                "name": GAME_EXE,
+                "commandlinefriendlyid": "Speaker Audio\\Application\\HTGame.exe",
+                "itemid": "\\Device\\HarddiskVolume2\\Game\\HTGame.exe%b1",
+                "type": "Application",
+                "direction": "Render",
+                "devicestate": "Active",
+                "processid": "80940",
+            },
+        ]
 
         with patch.object(audio_routing, "_export_sound_items", return_value=data):
             with patch.object(
