@@ -7,19 +7,24 @@ from src import GAME_EXE
 from src import audio_routing
 from src.audio_routing import (
     CONF_ENABLE,
-    CONF_SOUND_VOLUME_VIEW_PATH,
+    CONF_SVCL_PATH,
     DEFAULT_RENDER_DEVICE,
     _BackgroundAudioRouter,
     _RouteRequest,
     _background_audio_routing_validator,
-    _resolve_sound_volume_view_device_id,
+    _current_process_render_output_device,
+    _parse_sound_items_csv,
     audio_route_command,
     discover_output_devices,
-    parse_app_output_device,
 )
 
 
 class AudioRoutingTests(unittest.TestCase):
+    def setUp(self):
+        self.target_pids = patch.object(audio_routing, "_target_process_ids", return_value={80940})
+        self.target_pids.start()
+        self.addCleanup(self.target_pids.stop)
+
     def test_discover_output_devices_uses_sounddevice_playback_devices(self):
         fake_sounddevice = SimpleNamespace(
             query_hostapis=lambda: [
@@ -41,49 +46,80 @@ class AudioRoutingTests(unittest.TestCase):
 
         self.assertEqual(devices, [DEFAULT_RENDER_DEVICE, "Speakers (Realtek(R) Audio)"])
 
-    def test_resolve_sound_volume_view_device_id_matches_sounddevice_name(self):
-        data = {
-            "Sound Items": [
-                {
-                    "Name": "Speakers",
-                    "Command-Line Friendly ID": "Realtek Audio\\Device\\Speakers\\Render",
-                    "Type": "Device",
-                    "Direction": "Render",
-                    "Device": "Realtek Audio",
-                },
-            ]
-        }
-
-        self.assertEqual(
-            _resolve_sound_volume_view_device_id(data, "Speakers (Realtek(R) Audio)"),
-            "Realtek Audio\\Device\\Speakers\\Render",
+    def test_parse_sound_items_csv_infers_item_fields_from_svcl_stdout(self):
+        data = _parse_sound_items_csv(
+            "\ufeffCommand-Line Friendly ID,Item ID,Device State,Direction,Process ID\n"
+            "NVIDIA Broadcast\\Application\\异环,{0.0.0.00000000}.{app},Active,Render,80940\n"
+            "VB-Audio VoiceMeeter VAIO\\Device\\VoiceMeeter Input\\Render,"
+            "{0.0.0.00000000}.{render},Active,Render,\n"
         )
 
-    def test_resolve_sound_volume_view_device_id_ignores_non_render_records(self):
-        data = {
-            "Sound Items": [
-                {
-                    "Name": "Microphone",
-                    "Command-Line Friendly ID": "Realtek Audio\\Device\\Microphone\\Capture",
-                    "Type": "Device",
-                    "Direction": "Capture",
-                },
-                {
-                    "Name": "HTGame.exe",
-                    "Command-Line Friendly ID": "HTGame.exe",
-                    "Type": "Application",
-                    "Direction": "Render",
-                },
-                {
-                    "Name": "聲波音量",
-                    "Command-Line Friendly ID": "VB-Audio VoiceMeeter VAIO\\Subunit\\聲波音量",
-                    "Type": "Subunit",
-                    "Direction": "Render",
-                },
-            ]
-        }
+        self.assertEqual(data[0]["Type"], "Application")
+        self.assertEqual(data[0]["Name"], "异环")
+        self.assertEqual(data[0]["Process ID"], "80940")
+        self.assertEqual(data[1]["Type"], "Device")
+        self.assertEqual(data[1]["Name"], "VoiceMeeter Input")
 
-        self.assertEqual(_resolve_sound_volume_view_device_id(data, "Microphone"), "")
+    def test_export_sound_items_reads_svcl_stdout_csv_without_temp_file(self):
+        stdout = (
+            "\ufeffCommand-Line Friendly ID,Item ID,Device State,Direction,Process ID\n"
+            "NVIDIA Broadcast\\Application\\异环,{0.0.0.00000000}.{app},Active,Render,80940\n"
+        ).encode("utf-8-sig")
+
+        with patch.object(audio_routing, "_is_svcl_path", return_value=True):
+            with patch.object(
+                audio_routing.subprocess,
+                "run",
+                return_value=SimpleNamespace(returncode=0, stdout=stdout),
+            ) as run:
+                data = audio_routing._export_sound_items("svcl.exe")
+
+        self.assertEqual(data[0]["Name"], "异环")
+        self.assertEqual(
+            run.call_args.args[0],
+            [
+                "svcl.exe",
+                "/scomma",
+                "",
+                "/Columns",
+                "Command-LineFriendlyID,ItemID,DeviceState,Direction,ProcessID",
+            ],
+        )
+
+    def test_current_process_render_output_device_matches_active_target_pid(self):
+        data = [
+            {
+                "Command-Line Friendly ID": "NVIDIA Broadcast\\Device\\Speakers\\Render",
+                "Item ID": "{0.0.0.00000000}.{broadcast}",
+                "Type": "Device",
+                "Direction": "Render",
+            },
+            {
+                "Command-Line Friendly ID": "Realtek USB Audio\\Device\\喇叭\\Render",
+                "Item ID": "{0.0.0.00000000}.{realtek}",
+                "Type": "Device",
+                "Direction": "Render",
+            },
+            {
+                "Command-Line Friendly ID": "NVIDIA Broadcast\\Application\\异环",
+                "Item ID": "{0.0.0.00000000}.{broadcast}|app",
+                "Type": "Application",
+                "Direction": "Render",
+                "Device State": "Active",
+                "Process ID": "80940",
+            },
+            {
+                "Command-Line Friendly ID": "Realtek USB Audio\\Application\\异环",
+                "Item ID": "{0.0.0.00000000}.{realtek}|app",
+                "Type": "Application",
+                "Direction": "Render",
+                "Device State": "Active",
+                "Process ID": "12345",
+            },
+        ]
+        device = _current_process_render_output_device(data, GAME_EXE)
+
+        self.assertEqual(device.route_device, "NVIDIA Broadcast\\Device\\Speakers\\Render")
 
     def test_audio_route_command_targets_game_process(self):
         self.assertEqual(
@@ -91,7 +127,7 @@ class AudioRoutingTests(unittest.TestCase):
             [
                 "/SetAppDefault",
                 "USB Audio\\Device\\Speakers\\Render",
-                "all",
+                "0",
                 GAME_EXE,
             ],
         )
@@ -102,121 +138,385 @@ class AudioRoutingTests(unittest.TestCase):
             [
                 "/SetAppDefault",
                 DEFAULT_RENDER_DEVICE,
-                "all",
+                "0",
                 GAME_EXE,
             ],
         )
 
-    def test_parse_app_output_device_resolves_device_name_to_command_id(self):
+    def test_router_captures_original_app_output_device_before_background_route(self):
+        router = _BackgroundAudioRouter()
+        router._pending_route = _RouteRequest("Speakers", save_current=True)
         data = {
             "Sound Items": [
                 {
                     "Name": "Speakers",
-                    "Command-Line Friendly ID": "Realtek Audio\\Device\\Speakers\\Render",
+                    "Command-Line Friendly ID": "Speaker Audio\\Device\\Speakers\\Render",
                     "Type": "Device",
                     "Direction": "Render",
+                    "Device": "Speaker Audio",
+                },
+                {
+                    "Name": "Headphones",
+                    "Command-Line Friendly ID": "Headphone Audio\\Device\\Headphones\\Render",
+                    "Type": "Device",
+                    "Direction": "Render",
+                    "Device": "Headphone Audio",
                 },
                 {
                     "Name": GAME_EXE,
-                    "Command-Line Friendly ID": GAME_EXE,
+                    "Command-Line Friendly ID": "Headphone Audio\\Application\\HTGame.exe",
+                    "Item ID": "\\Device\\HarddiskVolume2\\Game\\HTGame.exe%b1",
                     "Type": "Application",
-                    "Device Name": "Speakers",
+                    "Direction": "Render",
+                    "Device State": "Active",
+                    "Process ID": "80940",
+                },
+                {
+                    "Name": GAME_EXE,
+                    "Command-Line Friendly ID": "Speaker Audio\\Application\\HTGame.exe",
+                    "Item ID": "\\Device\\HarddiskVolume2\\Game\\HTGame.exe%b1",
+                    "Type": "Application",
+                    "Direction": "Render",
+                    "Device State": "Inactive",
+                    "Process ID": "80940",
                 },
             ]
         }
 
-        self.assertEqual(
-            parse_app_output_device(data),
-            "Realtek Audio\\Device\\Speakers\\Render",
-        )
+        with patch.object(audio_routing, "_export_sound_items", return_value=data):
+            with patch.object(
+                audio_routing.subprocess,
+                "run",
+                return_value=SimpleNamespace(returncode=0),
+            ):
+                router._run_pending_routes("svcl.exe")
 
-    def test_parse_app_output_device_falls_back_to_default_without_app_record(self):
-        self.assertEqual(parse_app_output_device([]), DEFAULT_RENDER_DEVICE)
+        self.assertEqual(router._original_device, "Headphone Audio\\Device\\Headphones\\Render")
+        self.assertEqual(router._requested_device, "Speakers")
 
-    def test_router_captures_original_app_output_device_before_background_route(self):
+    def test_router_saves_default_when_current_device_is_background_target(self):
+        router = _BackgroundAudioRouter()
+        router._pending_route = _RouteRequest("Speakers", save_current=True)
+        data = {
+            "Sound Items": [
+                {
+                    "Name": "Speakers",
+                    "Command-Line Friendly ID": "Speaker Audio\\Device\\Speakers\\Render",
+                    "Type": "Device",
+                    "Direction": "Render",
+                    "Device": "Speaker Audio",
+                },
+                {
+                    "Name": GAME_EXE,
+                    "Command-Line Friendly ID": "Speaker Audio\\Application\\HTGame.exe",
+                    "Item ID": "\\Device\\HarddiskVolume2\\Game\\HTGame.exe%b1",
+                    "Type": "Application",
+                    "Direction": "Render",
+                    "Device State": "Active",
+                    "Process ID": "80940",
+                },
+            ]
+        }
+
+        with patch.object(audio_routing, "_export_sound_items", return_value=data):
+            with patch.object(
+                audio_routing.subprocess,
+                "run",
+                return_value=SimpleNamespace(returncode=0),
+            ):
+                router._run_pending_routes("svcl.exe")
+
+        self.assertEqual(router._original_device, DEFAULT_RENDER_DEVICE)
+        self.assertTrue(router._restore_needed)
+
+    def test_router_saves_default_when_current_device_name_matches_background_target_id(self):
         router = _BackgroundAudioRouter()
         router._pending_route = _RouteRequest(
-            "USB Audio\\Device\\Speakers\\Render",
-            capture_original=True,
+            "VB-Audio VoiceMeeter VAIO\\Device\\VoiceMeeter Input\\Render",
+            save_current=True,
         )
-        calls = []
+        data = {
+            "Sound Items": [
+                {
+                    "Name": "VoiceMeeter Input",
+                    "Command-Line Friendly ID": (
+                        "VB-Audio VoiceMeeter VAIO\\Device\\VoiceMeeter Input\\Render"
+                    ),
+                    "Type": "Device",
+                    "Direction": "Render",
+                    "Device": "VB-Audio VoiceMeeter VAIO",
+                },
+                {
+                    "Name": "异环",
+                    "Command-Line Friendly ID": "VB-Audio VoiceMeeter VAIO\\Application\\异环",
+                    "Item ID": "\\Device\\HarddiskVolume2\\Game\\HTGame.exe%b1",
+                    "Type": "Application",
+                    "Direction": "Render",
+                    "Device State": "Active",
+                    "Process ID": "80940",
+                },
+            ]
+        }
 
-        def route(_exe_path, device):
-            calls.append(device)
-            return True
+        with patch.object(audio_routing, "_export_sound_items", return_value=data):
+            with patch.object(
+                audio_routing.subprocess,
+                "run",
+                return_value=SimpleNamespace(returncode=0),
+            ):
+                router._run_pending_routes("svcl.exe")
 
-        router._apply_route = route
+        self.assertEqual(router._original_device, DEFAULT_RENDER_DEVICE)
+        self.assertTrue(router._restore_needed)
+
+    def test_router_matches_target_from_global_render_devices_not_process_devices(self):
+        router = _BackgroundAudioRouter()
+        router._pending_route = _RouteRequest(
+            "VoiceMeeter Input (VB-Audio VoiceMeeter VAIO)",
+            save_current=True,
+        )
+        data = {
+            "Sound Items": [
+                {
+                    "Name": "VoiceMeeter Input",
+                    "Command-Line Friendly ID": (
+                        "VB-Audio VoiceMeeter VAIO\\Device\\VoiceMeeter Input\\Render"
+                    ),
+                    "Type": "Device",
+                    "Direction": "Render",
+                    "Device Name": "VB-Audio VoiceMeeter VAIO",
+                },
+                {
+                    "Name": "喇叭",
+                    "Command-Line Friendly ID": "Realtek USB Audio\\Device\\喇叭\\Render",
+                    "Type": "Device",
+                    "Direction": "Render",
+                    "Device Name": "Realtek USB Audio",
+                },
+                {
+                    "Name": "异环",
+                    "Command-Line Friendly ID": "Realtek USB Audio\\Application\\异环",
+                    "Item ID": "\\Device\\HarddiskVolume2\\Game\\HTGame.exe%b1",
+                    "Type": "Application",
+                    "Direction": "Render",
+                    "Device State": "Active",
+                    "Process ID": "80940",
+                },
+            ]
+        }
+
+        with patch.object(audio_routing, "_export_sound_items", return_value=data):
+            with patch.object(
+                audio_routing.subprocess,
+                "run",
+                return_value=SimpleNamespace(returncode=0),
+            ) as run:
+                router._run_pending_routes("svcl.exe")
+
+        self.assertEqual(router._original_device, "Realtek USB Audio\\Device\\喇叭\\Render")
+        self.assertTrue(router._restore_needed)
+        self.assertEqual(
+            run.call_args.args[0],
+            [
+                "svcl.exe",
+                "/SetAppDefault",
+                "VB-Audio VoiceMeeter VAIO\\Device\\VoiceMeeter Input\\Render",
+                "0",
+                GAME_EXE,
+            ],
+        )
+
+    def test_router_restores_exact_render_endpoint_when_current_controller_has_multiple_outputs(self):
+        router = _BackgroundAudioRouter()
+        router._pending_route = _RouteRequest(
+            "VoiceMeeter Input (VB-Audio VoiceMeeter VAIO)",
+            save_current=True,
+        )
+        data = {
+            "Sound Items": [
+                {
+                    "Name": "VoiceMeeter Input",
+                    "Command-Line Friendly ID": (
+                        "VB-Audio VoiceMeeter VAIO\\Device\\VoiceMeeter Input\\Render"
+                    ),
+                    "Item ID": "{0.0.0.00000000}.{be88ae54}",
+                    "Type": "Device",
+                    "Direction": "Render",
+                    "Device Name": "VB-Audio VoiceMeeter VAIO",
+                },
+                {
+                    "Name": "Realtek Digital Output",
+                    "Command-Line Friendly ID": (
+                        "Realtek USB Audio\\Device\\Realtek Digital Output\\Render"
+                    ),
+                    "Item ID": "{0.0.0.00000000}.{digital}",
+                    "Type": "Device",
+                    "Direction": "Render",
+                    "Device Name": "Realtek USB Audio",
+                },
+                {
+                    "Name": "喇叭",
+                    "Command-Line Friendly ID": "Realtek USB Audio\\Device\\喇叭\\Render",
+                    "Item ID": "{0.0.0.00000000}.{speaker}",
+                    "Type": "Device",
+                    "Direction": "Render",
+                    "Device Name": "Realtek USB Audio",
+                },
+                {
+                    "Name": "异环",
+                    "Command-Line Friendly ID": "Realtek USB Audio\\Application\\异环",
+                    "Item ID": (
+                        "{0.0.0.00000000}.{speaker}|"
+                        "\\Device\\HarddiskVolume2\\Game\\HTGame.exe%b1"
+                    ),
+                    "Type": "Application",
+                    "Direction": "Render",
+                    "Device State": "Active",
+                    "Process ID": "80940",
+                },
+            ]
+        }
+
+        with patch.object(audio_routing, "_export_sound_items", return_value=data):
+            with patch.object(
+                audio_routing.subprocess,
+                "run",
+                return_value=SimpleNamespace(returncode=0),
+            ):
+                router._run_pending_routes("svcl.exe")
+
+        self.assertEqual(router._original_device, "Realtek USB Audio\\Device\\喇叭\\Render")
+        self.assertTrue(router._restore_needed)
+
+    def test_router_skips_background_route_when_original_device_capture_fails(self):
+        router = _BackgroundAudioRouter()
+        router._pending_route = _RouteRequest("USB Audio\\Device\\Speakers\\Render", save_current=True)
 
         with patch.object(
             audio_routing,
-            "discover_app_output_device",
-            return_value="USB Audio\\Device\\Headphones\\Render",
+            "_export_sound_items",
+            side_effect=RuntimeError("export failed"),
         ):
-            router._run_pending_routes("SoundVolumeView.exe")
+            with patch.object(audio_routing.subprocess, "run") as run:
+                router._run_pending_routes("svcl.exe")
 
-        self.assertEqual(calls, ["USB Audio\\Device\\Speakers\\Render"])
-        self.assertEqual(router._original_device, "USB Audio\\Device\\Headphones\\Render")
+        run.assert_not_called()
+        self.assertIsNone(router._original_device)
+        self.assertFalse(router._restore_needed)
+
+    def test_router_skips_background_route_when_capture_returns_default_placeholder(self):
+        router = _BackgroundAudioRouter()
+        router._pending_route = _RouteRequest("USB Audio\\Device\\Speakers\\Render", save_current=True)
+        data = {
+            "Sound Items": [
+                {
+                    "Name": GAME_EXE,
+                    "Command-Line Friendly ID": "USB Audio\\Application\\HTGame.exe",
+                    "Item ID": "\\Device\\HarddiskVolume2\\Game\\HTGame.exe%b1",
+                    "Type": "Application",
+                    "Direction": "Render",
+                    "Device State": "Inactive",
+                    "Process ID": "80940",
+                },
+            ]
+        }
+
+        with patch.object(audio_routing, "_export_sound_items", return_value=data):
+            with patch.object(audio_routing.subprocess, "run") as run:
+                router._run_pending_routes("svcl.exe")
+
+        run.assert_not_called()
+        self.assertIsNone(router._original_device)
+        self.assertFalse(router._restore_needed)
 
     def test_failed_route_does_not_mark_device_as_requested(self):
         router = _BackgroundAudioRouter()
-        router._pending_route = _RouteRequest(
-            "USB Audio\\Device\\Speakers\\Render",
-            capture_original=True,
-        )
+        router._pending_route = _RouteRequest("Speakers", save_current=True)
         router._original_device = DEFAULT_RENDER_DEVICE
-        calls = []
+        data = {
+            "Sound Items": [
+                {
+                    "Name": "Speakers",
+                    "Command-Line Friendly ID": "Speaker Audio\\Device\\Speakers\\Render",
+                    "Type": "Device",
+                    "Direction": "Render",
+                    "Device": "Speaker Audio",
+                },
+                {
+                    "Name": GAME_EXE,
+                    "Command-Line Friendly ID": "Speaker Audio\\Application\\HTGame.exe",
+                    "Item ID": "\\Device\\HarddiskVolume2\\Game\\HTGame.exe%b1",
+                    "Type": "Application",
+                    "Direction": "Render",
+                    "Device State": "Active",
+                    "Process ID": "80940",
+                },
+            ]
+        }
 
-        def fail_route(_exe_path, device):
-            calls.append(device)
-            return False
+        with patch.object(audio_routing, "_export_sound_items", return_value=data):
+            with patch.object(
+                audio_routing.subprocess,
+                "run",
+                return_value=SimpleNamespace(returncode=1),
+            ):
+                router._run_pending_routes("svcl.exe")
 
-        router._apply_route = fail_route
-
-        router._run_pending_routes("SoundVolumeView.exe")
-
-        self.assertEqual(calls, ["USB Audio\\Device\\Speakers\\Render"])
         self.assertIsNone(router._requested_device)
 
     def test_restore_route_uses_original_device(self):
         router = _BackgroundAudioRouter()
-        router._pending_route = _RouteRequest(
-            "USB Audio\\Device\\Headphones\\Render",
-            capture_original=False,
-        )
+        router._pending_route = _RouteRequest("USB Audio\\Device\\Headphones\\Render")
         router._original_device = "USB Audio\\Device\\Headphones\\Render"
-        calls = []
 
-        def route(_exe_path, device):
-            calls.append(device)
-            return True
+        with patch.object(
+            audio_routing.subprocess,
+            "run",
+            return_value=SimpleNamespace(returncode=0),
+        ):
+            router._run_pending_routes("svcl.exe")
 
-        router._apply_route = route
-
-        router._run_pending_routes("SoundVolumeView.exe")
-
-        self.assertEqual(calls, ["USB Audio\\Device\\Headphones\\Render"])
-        self.assertEqual(router._requested_device, "USB Audio\\Device\\Headphones\\Render")
+        self.assertIsNone(router._requested_device)
+        self.assertIsNone(router._original_device)
+        self.assertFalse(router._restore_needed)
 
     def test_restore_updates_requested_device_after_disable(self):
         router = _BackgroundAudioRouter()
         router._requested_device = "USB Audio\\Device\\Speakers\\Render"
         router._original_device = "USB Audio\\Device\\Headphones\\Render"
-        router._restore_exe_path = "SoundVolumeView.exe"
+        router._restore_exe_path = "svcl.exe"
         router._restore_needed = True
         calls = []
 
-        def route(_exe_path, device):
+        def route(_exe_path, device, save_current=False):
             calls.append(device)
-            return True
+            return device
 
-        router._apply_route = route
+        router._switch_process_device = route
 
-        with patch.object(audio_routing, "_is_sound_volume_view_path", return_value=True):
+        with patch.object(audio_routing, "_is_svcl_path", return_value=True):
             router.restore_on_exit()
 
         self.assertEqual(calls, ["USB Audio\\Device\\Headphones\\Render"])
-        self.assertEqual(router._requested_device, "USB Audio\\Device\\Headphones\\Render")
+        self.assertIsNone(router._requested_device)
+        self.assertIsNone(router._original_device)
         self.assertFalse(router._restore_needed)
+
+    def test_restore_on_exit_skips_when_original_device_is_unknown(self):
+        router = _BackgroundAudioRouter()
+        router._requested_device = "USB Audio\\Device\\Speakers\\Render"
+        router._restore_exe_path = "svcl.exe"
+        router._restore_needed = True
+        calls = []
+        router._switch_process_device = lambda _exe_path, device, save_current=False: (
+            calls.append(device) or device
+        )
+
+        with patch.object(audio_routing, "_is_svcl_path", return_value=True):
+            router.restore_on_exit()
+
+        self.assertEqual(calls, [])
+        self.assertTrue(router._restore_needed)
 
     def test_disabling_config_restores_audio_router(self):
         validator = _background_audio_routing_validator([DEFAULT_RENDER_DEVICE])
@@ -280,32 +580,46 @@ class AudioRoutingTests(unittest.TestCase):
 
         self.assertEqual(calls, [(False, True)])
 
-    def test_foreground_route_waits_for_original_device_capture(self):
+    def test_foreground_route_cancels_background_route_before_worker_starts(self):
         router = _BackgroundAudioRouter()
-        router._pending_route = _RouteRequest(
-            "USB Audio\\Device\\Speakers\\Render",
-            capture_original=True,
-        )
-        router._requested_device = DEFAULT_RENDER_DEVICE
+        router._pending_route = _RouteRequest("USB Audio\\Device\\Speakers\\Render", save_current=True)
         router._worker = SimpleNamespace(is_alive=lambda: True)
-        config = {CONF_SOUND_VOLUME_VIEW_PATH: "SoundVolumeView.exe"}
+        config = {CONF_SVCL_PATH: "svcl.exe"}
 
         with patch.object(audio_routing, "_routing_config", return_value=config):
-            with patch.object(audio_routing, "_is_sound_volume_view_path", return_value=True):
+            with patch.object(audio_routing, "_is_svcl_path", return_value=True):
+                router._request_route(True, enabled=True)
+
+        self.assertIsNone(router._pending_route)
+
+    def test_foreground_route_without_restore_needed_does_not_restore_default(self):
+        router = _BackgroundAudioRouter()
+        router._original_device = DEFAULT_RENDER_DEVICE
+        router._restore_needed = False
+        router._worker = SimpleNamespace(is_alive=lambda: False)
+        config = {CONF_SVCL_PATH: "svcl.exe"}
+
+        with patch.object(audio_routing, "_routing_config", return_value=config):
+            with patch.object(audio_routing, "_is_svcl_path", return_value=True):
+                router._request_route(True, enabled=True)
+
+        self.assertIsNone(router._pending_route)
+
+    def test_foreground_route_queues_restore_to_saved_original_device(self):
+        router = _BackgroundAudioRouter()
+        router._original_device = "USB Audio\\Device\\Headphones\\Render"
+        router._restore_needed = True
+        router._worker = SimpleNamespace(is_alive=lambda: True)
+        config = {CONF_SVCL_PATH: "svcl.exe"}
+
+        with patch.object(audio_routing, "_routing_config", return_value=config):
+            with patch.object(audio_routing, "_is_svcl_path", return_value=True):
                 router._request_route(True, enabled=True)
 
         self.assertEqual(
             router._pending_route,
-            _RouteRequest(DEFAULT_RENDER_DEVICE, capture_original=False, restore_original=True),
+            _RouteRequest("USB Audio\\Device\\Headphones\\Render"),
         )
-
-        calls = []
-        router._original_device = "USB Audio\\Device\\Headphones\\Render"
-        router._apply_route = lambda _exe_path, device: calls.append(device) or True
-
-        router._run_pending_routes("SoundVolumeView.exe")
-
-        self.assertEqual(calls, ["USB Audio\\Device\\Headphones\\Render"])
 
     def test_router_binds_to_ok_exit_event_for_forced_terminal_exit(self):
         router = _BackgroundAudioRouter()
