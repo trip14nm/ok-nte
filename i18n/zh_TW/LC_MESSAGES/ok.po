@@ -1081,3 +1081,6 @@ msgstr "選擇 svcl.exe"
 
 msgid "Open Download Page"
 msgstr "開啟下載頁面"
+
+msgid "⚠️ 正在运行{rob_mode}\n该模式会高频占用/争夺鼠标。如需停止，请使用热键暂停 ok-nte, 再手动停止任务。\n当前热键: {hotkey} (如无法确认当前热键则点击取消, 主动确认后再运行)"
+msgstr "⚠️ 正在運行{rob_mode}\n該模式會高頻佔用/爭奪滑鼠。如需停止，請使用熱鍵暫停 ok-nte, 再手動停止任務。\n當前熱鍵: {hotkey} (如無法確認當前熱鍵則點擊取消, 主動確認後再運行)"
