@@ -32,13 +32,7 @@ from src.ui.common import (
     cv_to_pixmap,
 )
 from src.ui.TeamScanner import TeamScanError, TeamScanner
-
-
-def tr_fmt(text_id, **kwargs):
-    t = og.app.tr(text_id)
-    for k, v in kwargs.items():
-        t = t.replace(f"{{{k}}}", str(v))
-    return t
+from src.ui.util import tr_fmt
 
 
 class TeamManagerSignals(QObject):

@@ -226,3 +226,10 @@ def wait_main_window(after_sleep=0):
                 time.sleep(after_sleep)
     except Exception as e:
         logger.error("wait main_window error", e)
+
+
+def tr_fmt(text_id, **kwargs):
+    t = og.app.tr(text_id)
+    for k, v in kwargs.items():
+        t = t.replace(f"{{{k}}}", str(v))
+    return t

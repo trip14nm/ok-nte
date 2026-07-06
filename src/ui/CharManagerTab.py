@@ -55,18 +55,13 @@ from src.ui.common import (
     char_manager_signals,
     cv_to_pixmap,
 )
+from src.ui.util import tr_fmt
 
 
 def get_builtin_prefix():
     # Backward-compatible export for modules that still import this symbol.
     return CustomCharManager.get_builtin_prefix()
 
-
-def tr_fmt(text_id, **kwargs):
-    t = og.app.tr(text_id)
-    for k, v in kwargs.items():
-        t = t.replace(f"{{{k}}}", str(v))
-    return t
 
 
 class CharManagerTab(CustomTab):
