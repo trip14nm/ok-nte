@@ -42,6 +42,7 @@ EN_INST = (
 class DSDFarmTask(NTEOneTimeTask, BaseCombatTask):
     CONF_LOCATION = "位置"
     CONF_USE_ULT = "使用终结技"
+    CONF_DONT_SWITCH = "战斗时不切人"
     CONF_MAX_COMBAT_TIME = "战斗时长上限"
 
     def __init__(self, *args, **kwargs):
@@ -51,13 +52,18 @@ class DSDFarmTask(NTEOneTimeTask, BaseCombatTask):
         self.icon = FluentIcon.FLAG
         _locale = self.get_app_locale()
         self.instructions = INST if _locale and "zh" in _locale else EN_INST
-        self.locations = ["巧克力火山-底层最左边的篝火", "赤龙古堡-龙之高塔室外篝火", "赤龙古堡-残丝长巷篝火"]
+        self.locations = [
+            "巧克力火山-底层最左边的篝火",
+            "赤龙古堡-龙之高塔室外篝火",
+            "赤龙古堡-残丝长巷篝火",
+        ]
         self.add_rounds_config()
         self.default_config.update(
             {
                 self.CONF_LOCATION: self.locations[0],
                 self.CONF_USE_ULT: True,
-                self.CONF_MAX_COMBAT_TIME: 1200
+                self.CONF_DONT_SWITCH: False,
+                self.CONF_MAX_COMBAT_TIME: 1200,
             }
         )
 
@@ -213,8 +219,21 @@ class DSDFarmTask(NTEOneTimeTask, BaseCombatTask):
             self.sleep(0.5)
 
     def deside_combat_action(self):
-        max_combat_time = self.config.get(self.CONF_MAX_COMBAT_TIME, 1200)
-        return self.combat_once(max_combat_time=max_combat_time)
+        try:
+            dont_switch = self.config.get(self.CONF_DONT_SWITCH, False)
+            max_combat_time = self.config.get(self.CONF_MAX_COMBAT_TIME, 1200)
+
+            if dont_switch:
+                old_switch = self.switch_next_char
+                old_switch_start = self.switch_to_combat_start_char
+                self.switch_next_char = lambda *args, **kwargs: self.click(interval=0.1)
+                self.switch_to_combat_start_char = lambda *args, **kwargs: self.click(interval=0.1)
+
+            return self.combat_once(max_combat_time=max_combat_time)
+        finally:
+            if dont_switch:
+                self.switch_next_char = old_switch
+                self.switch_to_combat_start_char = old_switch_start
 
     def map_zoom(self, zoom="max"):
         self.ensure_main()
@@ -281,7 +300,7 @@ class DSDFarmTask(NTEOneTimeTask, BaseCombatTask):
         self.operate_click(teleport, action_name="click_map_teleport")
         self.sleep(0.5)
         return self.click_traval_button(raise_if_not_found=False)
-    
+
     def teleport_on_spot(self):
         self.ensure_main()
         self.open_map()
