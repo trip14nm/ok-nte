@@ -17,18 +17,24 @@ INST = (
     f"{SPACE}跟跑视频: https://b23.tv/qsEVcDO\n\n"
     "赤龙古堡-龙之高塔室外篝火\n"
     f"{SPACE}龙之高塔只有两个篝火，室外旁边有棵树的篝火\n"
+    f"{SPACE}推荐三周目才来这里, 主要目的是刷纽扣\n\n"
+    "赤龙古堡-残丝长巷篝火\n"
+    f"{SPACE}残丝长巷附近只有三个篝火，唯一在室内的篝火\n"
     f"{SPACE}推荐三周目才来这里, 主要目的是刷纽扣"
 )
 
 EN_INST = (
-    "After manually teleporting to the target campfire once, do not rotate the camera; begin the quest immediately.\n\n"
-    "Chocolate Volcano - Bottom Floor Leftmost Bonfire\n"
-    f"{SPACE}The volcano has two levels!!! The target is the campfire on the far left of the *bottom level*.\n"
-    f"{SPACE}This campfire is only accessible after the second playthrough; it's recommended to grind here until level 100.\n"
-    f"{SPACE}Follow-up video: https://b23.tv/qsEVcDO\n\n"
-    "Red Dragon Castle - Dragon Tower Outdoor Campfire\n"
-    f"{SPACE}The Dragon Tower only has two campfires, one of which is outdoors next to a tree.\n"
-    f"{SPACE} recommends only coming here on your third playthrough; the main purpose is to farm buttons."
+    "After manually teleporting to the target checkpoint, do not rotate the camera. Start the task immediately.\n\n"
+    "Chocolate Volcano - Leftmost Checkpoint on the Bottom Layer\n"
+    f"{SPACE}The volcano has two layers!!! The target is the leftmost checkpoint on the *Bottom Layer*.\n"
+    f"{SPACE}This checkpoint is only accessible in New Game+ (NG+). Recommended for grinding to Lv.100.\n"
+    f"{SPACE}Video Guide: https://b23.tv/qsEVcDO\n\n"
+    "Red Dragon Castle - Dragon Tower (Outdoor Checkpoint)\n"
+    f"{SPACE}There are only two checkpoints in the Dragon Tower; choose the outdoor one next to a tree.\n"
+    f"{SPACE}Recommended for NG++ (3rd playthrough), mainly for farming Buttons.\n\n"
+    "Red Dragon Castle - Silken Alley Checkpoint\n"
+    f"{SPACE}There are only three checkpoints near Silken Alley; this is the only indoor one.\n"
+    f"{SPACE}Recommended for NG++ (3rd playthrough), mainly for farming Buttons."
 )
 # ruff: noqa
 
@@ -36,6 +42,7 @@ EN_INST = (
 class DSDFarmTask(NTEOneTimeTask, BaseCombatTask):
     CONF_LOCATION = "位置"
     CONF_USE_ULT = "使用终结技"
+    CONF_MAX_COMBAT_TIME = "战斗时长上限"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -44,12 +51,13 @@ class DSDFarmTask(NTEOneTimeTask, BaseCombatTask):
         self.icon = FluentIcon.FLAG
         _locale = self.get_app_locale()
         self.instructions = INST if _locale and "zh" in _locale else EN_INST
-        self.locations = ["巧克力火山-底层最左边的篝火", "赤龙古堡-龙之高塔室外篝火"]
+        self.locations = ["巧克力火山-底层最左边的篝火", "赤龙古堡-龙之高塔室外篝火", "赤龙古堡-残丝长巷篝火"]
         self.add_rounds_config()
         self.default_config.update(
             {
                 self.CONF_LOCATION: self.locations[0],
-                self.CONF_USE_ULT: True
+                self.CONF_USE_ULT: True,
+                self.CONF_MAX_COMBAT_TIME: 1200
             }
         )
 
@@ -113,6 +121,8 @@ class DSDFarmTask(NTEOneTimeTask, BaseCombatTask):
             self.map_zoom(zoom="max")
         elif location == self.locations[1]:
             self.map_zoom(zoom="mid")
+        elif location == self.locations[2]:
+            self.map_zoom(zoom="mid")
 
     def deside_action(self):
         location = self.config.get(self.CONF_LOCATION, None)
@@ -121,12 +131,14 @@ class DSDFarmTask(NTEOneTimeTask, BaseCombatTask):
             self.location_0()
         elif location == self.locations[1]:
             self.location_1()
+        elif location == self.locations[2]:
+            self.location_2()
 
     def location_0(self):
         if self.walk_until_combat(run=True, delay=1):
             with self.skip_sleep_checks() as skip:
                 skip.all = False
-                self.combat_once()
+                self.deside_combat_action()
         self.sleep(0.5)
         while True:
             if self.teleport_to_nearest_bonfire():
@@ -161,7 +173,7 @@ class DSDFarmTask(NTEOneTimeTask, BaseCombatTask):
         if self.wait_until(self.in_combat, time_out=10):
             with self.skip_sleep_checks() as skip:
                 skip.all = False
-                self.combat_once()
+                self.deside_combat_action()
         self.sleep(0.5)
         box = self.box_of_screen(0.498, 0.102, 0.931, 0.827)
         while True:
@@ -169,6 +181,32 @@ class DSDFarmTask(NTEOneTimeTask, BaseCombatTask):
                 break
             self.ensure_main()
             self.sleep(0.5)
+
+    def location_2(self):
+        self.send_key_down("w")
+        self.sleep(0.20)
+        self.send_key("lshift")
+        self.sleep(2.80)
+        self.send_key_down("a")
+        self.sleep(0.10)
+        self.send_key_up("w")
+        self.sleep(2.10)
+        self.send_key_up("a")
+        if self.wait_until(self.in_combat, time_out=10):
+            with self.skip_sleep_checks() as skip:
+                skip.all = False
+                self.deside_combat_action()
+        self.sleep(0.5)
+        box = self.box_of_screen(0.410, 0.234, 0.560, 0.556)
+        while True:
+            if self.teleport_to_top_bonfire(box):
+                break
+            self.ensure_main()
+            self.sleep(0.5)
+
+    def deside_combat_action(self):
+        max_combat_time = self.config.get(self.CONF_MAX_COMBAT_TIME, 1200)
+        return self.combat_once(max_combat_time=max_combat_time)
 
     def map_zoom(self, zoom="max"):
         self.ensure_main()
