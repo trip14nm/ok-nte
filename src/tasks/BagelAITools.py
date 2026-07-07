@@ -1314,7 +1314,9 @@ class BagelAITools(NTEOneTimeTask, BaseNTETask):
         }
 
         self.log_info("正在向后端发送推理请求...")
-        timeout = int(self.config.get(self.CONF_MODEL_TIMEOUT, 30))
+        timeout_raw = self.config.get(self.CONF_MODEL_TIMEOUT, 30)
+        # 超时时间未配置回退到默认值 30 秒
+        timeout = 30 if timeout_raw in ("", None) else int(timeout_raw)
         response = requests.post(api_url, headers=headers, data=json.dumps(payload), timeout=timeout)
 
         if response.status_code == 200:
