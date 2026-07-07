@@ -226,14 +226,17 @@ class DSDFarmTask(NTEOneTimeTask, BaseCombatTask):
             if dont_switch:
                 old_switch = self.switch_next_char
                 old_switch_start = self.switch_to_combat_start_char
+                old_switch_other = self.switch_other_char
                 self.switch_next_char = lambda *args, **kwargs: self.click(interval=0.1)
                 self.switch_to_combat_start_char = lambda *args, **kwargs: self.click(interval=0.1)
+                self.switch_other_char =  lambda *args, **kwargs: True
 
             return self.combat_once(max_combat_time=max_combat_time)
         finally:
             if dont_switch:
                 self.switch_next_char = old_switch
                 self.switch_to_combat_start_char = old_switch_start
+                self.switch_other_char = old_switch_other
 
     def map_zoom(self, zoom="max"):
         self.ensure_main()
