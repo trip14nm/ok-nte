@@ -68,9 +68,11 @@ def _build_char_instance(
         instance.combo_name = manager.get_combo_name(combo_id, with_builtin_prefix=True)
         instance.builtin = True
         instance.element = char_dict[combo_id].get("element", Element.DEFAULT)
-        return instance
+    else:
+        instance = CustomChar(task, index, char_id=match_id, combo_id=combo_id, confidence=sim)
+        instance.char_name = match_name
 
-    return CustomChar(task, index, char_id=match_id, combo_id=combo_id, confidence=sim)
+    return instance
 
 
 def get_char_by_id(

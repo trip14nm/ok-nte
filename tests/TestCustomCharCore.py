@@ -278,6 +278,21 @@ class TestCustomCharCore(unittest.TestCase):
 
         self.assertIsNone(missing)
 
+    def test_char_factory_loads_custom_char_metadata_by_id(self):
+        from src.char.CharFactory import _build_char_instance
+
+        manager = CustomCharManager()
+        combo_id = manager.add_combo("combo_runtime", "skill, wait(0.1)")
+        char_id = manager.create_character("runtime hero", combo_id)
+
+        char = _build_char_instance(Mock(), 0, char_id, 1, manager)
+
+        self.assertIsInstance(char, CustomChar)
+        self.assertEqual(char.char_name, "runtime hero")
+        self.assertEqual(char.combo_id, combo_id)
+        self.assertEqual(char.combo_name, "combo_runtime")
+        self.assertEqual([command[0] for command in char.parsed_combo], ["skill", "wait"])
+
     def test_fixed_team_migrates_combo_ref_to_combo_id(self):
         legacy = {
             "schema_version": 4,
