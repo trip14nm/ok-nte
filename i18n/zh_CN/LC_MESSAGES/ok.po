@@ -1073,3 +1073,6 @@ msgstr ""
 
 msgid "战斗时长上限"
 msgstr ""
+
+msgid "战斗时不切人"
+msgstr ""

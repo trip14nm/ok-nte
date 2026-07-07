@@ -1090,3 +1090,6 @@ msgstr "Castillo del Dragón Rojo - Hoguera del Callejón de la Seda"
 
 msgid "战斗时长上限"
 msgstr "Duración máxima de combate"
+
+msgid "战斗时不切人"
+msgstr "No cambiar de personaje durante el combate"

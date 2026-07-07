@@ -1090,3 +1090,6 @@ msgstr "Red Dragon Castle - Silken Alley Checkpoint"
 
 msgid "战斗时长上限"
 msgstr "Max Combat Duration"
+
+msgid "战斗时不切人"
+msgstr "Do not switch characters during combat"
